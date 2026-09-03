@@ -4,11 +4,11 @@ from app.services.embedding import generate_embedding
 from app.services.vector_store import add_chunks, search_chunks
 
 
-def test_vector_store_search():
+def test_retrieve_relevant_chunk():
     client = chromadb.EphemeralClient()
 
     test_collection = client.create_collection(
-        name="test_hr_policies"
+        name="test_retrieval"
     )
 
     text = "Employees can carry forward up to 12 casual leave days."
@@ -25,19 +25,25 @@ def test_vector_store_search():
                 "page": "",
             }
         ],
-        ids=["test-casual-leave-1"],
+        ids=["retrieval-test-1"],
         target_collection=test_collection,
     )
 
-    query_embedding = generate_embedding(
-        "How many casual leave days can I carry forward?"
-    )
+    query = "How many casual leave days can employees carry forward?"
+
+    query_embedding = generate_embedding(query)
 
     results = search_chunks(
-        query_embedding,
-        top_k=1,
+        query_embedding=query_embedding,
+        top_k=2,
         target_collection=test_collection,
     )
 
     assert results["documents"]
-    assert "12 casual leave days" in results["documents"][0][0]
+
+    retrieved_documents = results["documents"][0]
+
+    assert any(
+        "12 casual leave days" in document
+        for document in retrieved_documents
+    )

@@ -15,8 +15,11 @@ def add_chunks(
     embeddings: list[list[float]],
     metadatas: list[dict],
     ids: list[str],
+    target_collection=None,
 ) -> None:
-    collection.add(
+    target = target_collection or collection
+
+    target.add(
         documents=texts,
         embeddings=embeddings,
         metadatas=metadatas,
@@ -27,8 +30,11 @@ def add_chunks(
 def search_chunks(
     query_embedding: list[float],
     top_k: int = 5,
+    target_collection=None,
 ) -> dict:
-    return collection.query(
+    target = target_collection or collection
+
+    return target.query(
         query_embeddings=[query_embedding],
         n_results=top_k,
     )

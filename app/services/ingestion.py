@@ -6,7 +6,7 @@ from app.services.embedding import generate_embeddings
 from app.services.vector_store import add_chunks
 
 
-def ingest_document(file_path: Path) -> int:
+def ingest_document(file_path: Path, target_collection=None) -> int:
     sections = parse_document(file_path)
 
     chunks = create_chunks(sections)
@@ -34,6 +34,7 @@ def ingest_document(file_path: Path) -> int:
         embeddings=embeddings,
         metadatas=metadatas,
         ids=ids,
+        target_collection=target_collection,
     )
 
     return len(chunks)
