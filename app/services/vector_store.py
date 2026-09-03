@@ -1,6 +1,5 @@
 import chromadb
 
-
 CHROMA_PATH = "data/chroma"
 
 client = chromadb.PersistentClient(path=CHROMA_PATH)

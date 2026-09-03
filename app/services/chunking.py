@@ -55,7 +55,7 @@ def create_chunks(sections: list[dict]) -> list[DocumentChunk]:
 
             chunks.append(
                 DocumentChunk(
-                    text=text,
+                    text = text,
                     document=section["document"],
                     section=section["section"],
                     page=section["page"],
