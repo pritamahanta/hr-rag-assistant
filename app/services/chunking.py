@@ -6,7 +6,7 @@ class DocumentChunk:
     text: str
     document: str
     section: str | None
-    page: int | None
+    page: int | str
     chunk_id: str
 
 

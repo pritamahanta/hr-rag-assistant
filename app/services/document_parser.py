@@ -48,7 +48,7 @@ def parse_markdown_file(file_path: Path) -> list[dict]:
                 "text": "\n".join(current_lines).strip(),
                 "document": file_path.name,
                 "section": current_section,
-                "page": None,
+                "page": "",
             }
         )
 
