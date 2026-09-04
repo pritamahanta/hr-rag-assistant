@@ -1,7 +1,5 @@
 import chromadb
-
 from pathlib import Path
-
 from app.services.ingestion import ingest_document
 
 
