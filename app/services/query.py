@@ -9,7 +9,6 @@ REFUSAL_MESSAGE = (
     "Please contact HR."
 )
 
-
 def build_context(chunks) -> str:
     context_parts = []
 
@@ -30,29 +29,35 @@ def answer_query(
     top_k: int = 5,
 ) -> AnswerResponse:
     chunks = retrieve_chunks(
-        query=question,
-        top_k=top_k,
+        query = question,
+        top_k = top_k,
     )
 
     if not is_retrieval_strong(chunks):
         return AnswerResponse(
-            answer=REFUSAL_MESSAGE,
-            citations=[],
+            answer = REFUSAL_MESSAGE,
+            citations = [],
         )
 
     context = build_context(chunks)
 
-    llm_response = generate_answer(
-        question=question,
-        context=context,
-    )
+    try:
+        llm_response = generate_answer(
+            question = question,
+            context = context,
+        )
+    except Exception:
+        return AnswerResponse(
+            answer = REFUSAL_MESSAGE,
+            citations = [],
+        )
 
     citations = build_citations(
         chunks,
         llm_response.source_ids,
     )
 
-    return AnswerResponse(
-        answer=llm_response.answer,
-        citations=citations,
+    return AnswerResponse (
+        answer = llm_response.answer,
+        citations = citations,
     )
