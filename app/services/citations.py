@@ -4,22 +4,32 @@ from app.services.retrieval import RetrievedChunk
 
 def build_citations(
     chunks: list[RetrievedChunk],
+    source_ids: list[str],
 ) -> list[Citation]:
-    citations = []
+    chunks_by_id = {
+        chunk.chunk_id: chunk
+        for chunk in chunks
+    }
 
+    citations = []
     seen = set()
 
-    for chunk in chunks:
-        key = (
+    for source_id in source_ids:
+        chunk = chunks_by_id.get(source_id)
+
+        if chunk is None:
+            continue
+
+        citation_key = (
             chunk.document,
             chunk.section,
             chunk.page,
         )
 
-        if key in seen:
+        if citation_key in seen:
             continue
 
-        seen.add(key)
+        seen.add(citation_key)
 
         citations.append(
             Citation(

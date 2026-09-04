@@ -43,6 +43,7 @@ def test_retrieved_chunk_structure():
         section=results["metadatas"][0][0]["section"],
         page=results["metadatas"][0][0]["page"],
         distance=results["distances"][0][0],
+        chunk_id=results["ids"][0][0],
     )
 
     assert chunk.text
@@ -57,6 +58,7 @@ def test_strong_retrieval():
         section="Casual Leave",
         page="",
         distance=0.295,
+        chunk_id="casual-leave-1",
     )
 
     assert is_retrieval_strong([chunk])
@@ -69,6 +71,7 @@ def test_weak_retrieval():
         section="Sick Leave",
         page="",
         distance=0.775,
+        chunk_id="casual-leave-1",
     )
 
     assert not is_retrieval_strong([chunk])

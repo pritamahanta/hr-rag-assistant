@@ -6,7 +6,6 @@ from app.services.vector_store import search_chunks
 
 RETRIEVAL_DISTANCE_THRESHOLD = 0.65
 
-
 @dataclass
 class RetrievedChunk:
     text: str
@@ -14,6 +13,7 @@ class RetrievedChunk:
     section: str
     page: str | int
     distance: float
+    chunk_id: str
 
 
 def retrieve_chunks(
@@ -30,10 +30,12 @@ def retrieve_chunks(
     documents = results["documents"][0]
     metadatas = results["metadatas"][0]
     distances = results["distances"][0]
+    ids = results["ids"][0]
 
     chunks = []
 
-    for document, metadata, distance in zip(
+    for chunk_id, document, metadata, distance in zip(
+        ids,
         documents,
         metadatas,
         distances,
@@ -45,6 +47,7 @@ def retrieve_chunks(
                 section=metadata["section"],
                 page=metadata["page"],
                 distance=distance,
+                chunk_id=chunk_id,
             )
         )
 

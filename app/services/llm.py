@@ -15,9 +15,16 @@ LLM_RESPONSE_SCHEMA = {
         "answer": {
             "type": "string",
         },
+        "source_ids": {
+            "type": "array",
+            "items": {
+                "type": "string",
+            },
+        },
     },
     "required": [
         "answer",
+        "source_ids",
     ],
     "additionalProperties": False,
 }
@@ -37,8 +44,12 @@ def generate_answer(
                     "Answer the user's question using only the provided policy context. "
                     "Do not use outside knowledge. "
                     "If the context does not contain enough information to answer "
-                    "the question, clearly say that the information is not available "
-                    "in the provided policies."
+                    "the question, clearly state that the information is not available "
+                    "in the provided policies and return an empty source_ids array. "
+                    "For an answer that is supported by the context, return the "
+                    "source_ids of the provided context entries that directly support "
+                    "the answer. "
+                    "Never invent or modify a source_id."
                 ),
             },
             {
