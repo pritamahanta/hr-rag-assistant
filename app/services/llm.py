@@ -6,7 +6,18 @@ from app.models.schemas import LLMResponse
 
 MODEL_NAME = "openai/gpt-oss-20b"
 
-client = Groq(api_key=GROQ_API_KEY)
+_client = None
+
+
+def _get_client() -> Groq:
+    if not GROQ_API_KEY:
+        raise RuntimeError(
+            "GROQ_API_KEY is not configured. Add it to .env before asking questions."
+        )
+    global _client
+    if _client is None:
+        _client = Groq(api_key=GROQ_API_KEY)
+    return _client
 
 
 LLM_RESPONSE_SCHEMA = {
@@ -34,6 +45,8 @@ def generate_answer(
     question: str,
     context: str,
 ) -> LLMResponse:
+    client = _get_client()
+
     response = client.chat.completions.create(
         model=MODEL_NAME,
         messages=[
