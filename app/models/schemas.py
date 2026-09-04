@@ -15,3 +15,6 @@ class LLMResponse(BaseModel):
 class AnswerResponse(BaseModel):
     answer: str
     citations: list[Citation] = Field(default_factory=list)
+
+class QueryRequest(BaseModel):
+    question: str = Field(min_length=1)

@@ -4,10 +4,7 @@ CHROMA_PATH = "data/chroma"
 
 client = chromadb.PersistentClient(path=CHROMA_PATH)
 
-collection = client.get_or_create_collection(
-    name="hr_policies"
-)
-
+collection = client.get_or_create_collection( name="hr_policies" )
 
 def add_chunks(
     texts: list[str],

@@ -24,7 +24,7 @@ def retrieve_chunks(
 
     results = search_chunks(
         query_embedding=query_embedding,
-        top_k=top_k,
+        top_k = top_k,
     )
 
     documents = results["documents"][0]
@@ -34,29 +34,24 @@ def retrieve_chunks(
 
     chunks = []
 
-    for chunk_id, document, metadata, distance in zip(
+    for chunk_id, document, metadata, distance in zip (
         ids,
         documents,
         metadatas,
         distances,
     ):
-        chunks.append(
-            RetrievedChunk(
-                text=document,
-                document=metadata["document"],
-                section=metadata["section"],
-                page=metadata["page"],
-                distance=distance,
-                chunk_id=chunk_id,
+        chunks.append( RetrievedChunk(
+                text = document,
+                document = metadata["document"],
+                section = metadata["section"],
+                page = metadata["page"],
+                distance = distance,
+                chunk_id = chunk_id,
             )
         )
-
     return chunks
 
-
-def is_retrieval_strong(
-    chunks: list[RetrievedChunk],
-) -> bool:
+def is_retrieval_strong( chunks: list[RetrievedChunk], ) -> bool:
     if not chunks:
         return False
 

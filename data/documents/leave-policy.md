@@ -1,0 +1,3 @@
+# Leave Policy
+
+Employees receive 20 days of annual leave.
