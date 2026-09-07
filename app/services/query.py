@@ -1,7 +1,12 @@
+import logging
+
 from app.models.schemas import AnswerResponse
 from app.services.citations import build_citations
 from app.services.llm import generate_answer
 from app.services.retrieval import is_retrieval_strong, retrieve_chunks
+
+
+logger = logging.getLogger(__name__)
 
 
 REFUSAL_MESSAGE = (
@@ -24,7 +29,7 @@ def build_context(chunks) -> str:
     return "\n\n---\n\n".join(context_parts)
 
 
-def answer_query(
+def answer_query (
     question: str,
     top_k: int = 5,
 ) -> AnswerResponse:
@@ -47,6 +52,27 @@ def answer_query(
             context = context,
         )
     except Exception:
+
+        logger.exception("LLM call failed while answering query: %r", question)
+        return AnswerResponse(
+            answer = REFUSAL_MESSAGE,
+            citations = [],
+        )
+
+    if llm_response.decision == "refuse":
+        return AnswerResponse(
+            answer = REFUSAL_MESSAGE,
+            citations = [],
+        )
+
+    if llm_response.decision == "clarify":
+        return AnswerResponse(
+            answer = llm_response.answer,
+            citations = [],
+        )
+
+    
+    if not llm_response.source_ids:
         return AnswerResponse(
             answer = REFUSAL_MESSAGE,
             citations = [],

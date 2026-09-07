@@ -23,6 +23,14 @@ def _get_client() -> Groq:
 LLM_RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
+        "decision": {
+            "type": "string",
+            "enum": [
+                "answer",
+                "clarify",
+                "refuse",
+            ],
+        },
         "answer": {
             "type": "string",
         },
@@ -34,6 +42,7 @@ LLM_RESPONSE_SCHEMA = {
         },
     },
     "required": [
+        "decision",
         "answer",
         "source_ids",
     ],
@@ -53,16 +62,35 @@ def generate_answer(
             {
                 "role": "system",
                 "content": (
-                    "You are an internal HR policy assistant. "
-                    "Answer the user's question using only the provided policy context. "
-                    "Do not use outside knowledge. "
-                    "If the context does not contain enough information to answer "
-                    "the question, clearly state that the information is not available "
-                    "in the provided policies and return an empty source_ids array. "
-                    "For an answer that is supported by the context, return the "
-                    "source_ids of the provided context entries that directly support "
-                    "the answer. "
-                    "Never invent or modify a source_id."
+                        "You are an internal HR policy assistant. "
+                        "Answer the user's question using only the provided policy context. "
+                        "Do not use outside knowledge. "
+
+                        "Choose exactly one decision: "
+                        "'answer', 'clarify', or 'refuse'. "
+
+                        "Use 'answer' when the policy context contains enough information "
+                        "to answer the user's question specifically and accurately. "
+
+                        "Use 'clarify' when the policy context is relevant to the user's "
+                        "question, but the user's question is ambiguous or missing information "
+                        "needed to determine exactly what they are asking. "
+                        "For example, if the user asks 'How many leave days do I have?' "
+                        "and the context contains multiple types of leave, ask which type "
+                        "of leave they mean. "
+                        "The clarification must be based only on concepts present in the "
+                        "provided policy context. "
+
+                        "Use 'refuse' when the provided policy context does not contain "
+                        "enough relevant information to answer the question. "
+                        "Do not guess. "
+
+                        "For 'answer', return the source_ids of the provided context entries "
+                        "that directly support the answer. "
+
+                        "For 'clarify' and 'refuse', return an empty source_ids array. "
+
+                        "Never invent or modify a source_id."
                 ),
             },
             {

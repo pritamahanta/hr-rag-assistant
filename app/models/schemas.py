@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Literal
 
 
 class Citation(BaseModel):
@@ -8,6 +9,7 @@ class Citation(BaseModel):
 
 
 class LLMResponse(BaseModel):
+    decision: Literal["answer", "clarify", "refuse"]
     answer: str
     source_ids: list[str] = Field(default_factory=list)
 
