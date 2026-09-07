@@ -4,8 +4,6 @@ from app.services.embedding import generate_embedding
 from app.services.vector_store import search_chunks
 
 
-RETRIEVAL_DISTANCE_THRESHOLD = 0.65
-
 @dataclass
 class RetrievedChunk:
     text: str
@@ -50,12 +48,16 @@ def retrieve_chunks(
                 chunk_id=chunk_id,
             )
         )
+
+        print(
+    [
+        {
+            "section": chunk.section,
+            "distance": round(chunk.distance, 3),
+        }
+        for chunk in chunks
+    ]
+)
     return chunks
 
 
-
-def is_retrieval_strong( chunks: list[RetrievedChunk], ) -> bool:
-    if not chunks:
-        return False
-
-    return chunks[0].distance <= RETRIEVAL_DISTANCE_THRESHOLD
