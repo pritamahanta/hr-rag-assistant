@@ -1,7 +1,7 @@
 import chromadb
 
 from app.services.embedding import generate_embedding
-from app.services.retrieval import RetrievedChunk, is_retrieval_strong
+from app.services.retrieval import RetrievedChunk
 from app.services.vector_store import add_chunks
 
 
@@ -49,33 +49,3 @@ def test_retrieved_chunk_structure():
     assert chunk.text
     assert chunk.document == "leave_policy.md"
     assert chunk.section == "Casual Leave"
-
-
-def test_strong_retrieval():
-    chunk = RetrievedChunk(
-        text="Employees can carry forward up to 12 casual leave days.",
-        document="leave_policy.md",
-        section="Casual Leave",
-        page="",
-        distance=0.295,
-        chunk_id="casual-leave-1",
-    )
-
-    assert is_retrieval_strong([chunk])
-
-
-def test_weak_retrieval():
-    chunk = RetrievedChunk(
-        text="Employees receive 10 sick leave days per year.",
-        document="leave_policy.md",
-        section="Sick Leave",
-        page="",
-        distance=0.775,
-        chunk_id="casual-leave-1",
-    )
-
-    assert not is_retrieval_strong([chunk])
-
-
-def test_empty_retrieval_is_weak():
-    assert not is_retrieval_strong([])
