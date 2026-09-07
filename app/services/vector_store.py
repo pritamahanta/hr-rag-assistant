@@ -56,3 +56,23 @@ def delete_document(
         target.delete(ids=ids)
 
     return len(ids)
+
+
+def replace_document(
+    document: str,
+    texts: list[str],
+    embeddings: list[list[float]],
+    metadatas: list[dict],
+    ids: list[str],
+    target_collection=None,
+) -> None:
+    target = target_collection or collection
+
+    delete_document(document, target_collection=target)
+
+    target.add(
+        documents=texts,
+        embeddings=embeddings,
+        metadatas=metadatas,
+        ids=ids,
+    )
