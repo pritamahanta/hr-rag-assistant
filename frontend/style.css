@@ -114,3 +114,11 @@ button:disabled {
     color: #c00;
     border: 1px solid #ddd;
 }
+
+.no-sources {
+    margin: 0;
+    padding: 12px;
+    background: #f7f7f7;
+    border-radius: 6px;
+    color: #666;
+}

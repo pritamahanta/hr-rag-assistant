@@ -81,7 +81,7 @@ askButton.addEventListener("click", async () => {
         answerElement.textContent = data.answer;
 
         if (data.citations.length === 0) {
-            citationsElement.innerHTML = "";
+            citationsElement.innerHTML = '<p class="no-sources">No supporting sources available.</p>';
             return;
         }
 
