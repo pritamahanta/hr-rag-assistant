@@ -31,15 +31,23 @@ async def upload_document(file: UploadFile = File(...)):
     file_path = UPLOAD_DIR / file.filename
 
     content = await file.read()
+
+    if not content:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file is empty.",
+    )
+    
     file_path.write_bytes(content)
 
     try:
         chunks_indexed = ingest_document(file_path)
     except Exception as exc:
+        file_path.unlink(missing_ok=True)
         raise HTTPException(
             status_code=500,
             detail=f"Document ingestion failed: {exc}",
-        ) from exc
+    ) from exc
 
     return {
         "message": "Document uploaded and indexed successfully.",
