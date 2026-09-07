@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Policy Assistant</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+    <main class="container">
+        <header>
+            <h1>HR Policy Assistant</h1>
+            <p>Ask questions based on your uploaded HR policies.</p>
+        </header>
+
+        <section class="card">
+            <h2>Upload Policy</h2>
+
+            <div class="upload-row">
+                <input type="file" id="fileInput" accept=".md,.txt,.pdf">
+                <button id="uploadButton">Upload</button>
+            </div>
+
+            <p id="uploadStatus" class="status"></p>
+        </section>
+
+        <section class="card">
+            <h2>Uploaded Policies</h2>
+
+            <div id="documentsList">
+                <p>Loading documents...</p>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Ask a Question</h2>
+
+            <div class="query-row">
+                <input type="text" id="questionInput" placeholder="How many casual leave days do employees receive?">
+                <button id="askButton">Ask</button>
+            </div>
+        </section>
+
+        <section class="card" id="resultSection">
+            <h2>Answer</h2>
+
+            <p id="answer"></p>
+
+            <div id="citationsContainer">
+                <h3>Sources</h3>
+                <div id="citations"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/app.js"></script>
+</body>
+
+</html>

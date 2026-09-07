@@ -9,6 +9,22 @@ UPLOAD_DIR = Path("data/documents")
 ALLOWED_EXTENSIONS = {".md", ".txt", ".pdf"}
 
 
+
+@router.get("/")
+def list_documents():
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    documents = [
+        path.name
+        for path in UPLOAD_DIR.iterdir()
+        if path.is_file() and path.suffix.lower() in ALLOWED_EXTENSIONS
+    ]
+
+    return {
+        "documents": sorted(documents),
+    }
+
+
 @router.post("/upload")
 async def upload_document(file: UploadFile = File(...)):  
     
