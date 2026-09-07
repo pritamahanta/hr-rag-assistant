@@ -1,9 +1,7 @@
 from unittest.mock import patch
 
 from app.models.schemas import LLMResponse, QueryResolution
-
 from app.services.query import REFUSAL_MESSAGE, answer_query
-
 from app.services.retrieval import RetrievedChunk
 
 
@@ -39,7 +37,6 @@ def _run_with_mocked_llm(
 def test_refuse_decision_returns_canonical_message():
     resolution = QueryResolution(
         decision="refuse",
-        clarification="",
     )
 
     result = _run_with_mocked_llm(resolution)
@@ -48,22 +45,26 @@ def test_refuse_decision_returns_canonical_message():
     assert result.citations == []
 
 
-def test_clarify_decision_passes_through_clarification():
+def test_clarify_decision_returns_generic_clarification():
     resolution = QueryResolution(
         decision="clarify",
-        clarification="Which type of leave are you asking about?",
     )
 
-    result = _run_with_mocked_llm(resolution)
+    result = _run_with_mocked_llm(
+        resolution,
+        question="How many leave days do I get?",
+    )
 
-    assert result.answer == "Could you please provide a little more detail about what you're asking about?"
+    assert (
+        result.answer
+        == "Could you please provide a little more detail about what you're asking about?"
+    )
     assert result.citations == []
 
 
 def test_answer_decision_with_empty_source_ids_is_untrustworthy():
     resolution = QueryResolution(
         decision="answer",
-        clarification="",
     )
 
     llm_response = LLMResponse(
@@ -83,7 +84,6 @@ def test_answer_decision_with_empty_source_ids_is_untrustworthy():
 def test_answer_decision_with_valid_source_ids_passes_through_normally():
     resolution = QueryResolution(
         decision="answer",
-        clarification="",
     )
 
     llm_response = LLMResponse(
@@ -104,7 +104,6 @@ def test_answer_decision_with_valid_source_ids_passes_through_normally():
 def test_llm_exception_returns_refusal_and_does_not_crash():
     resolution = QueryResolution(
         decision="answer",
-        clarification="",
     )
 
     with patch(
@@ -142,5 +141,19 @@ def test_clarify_does_not_call_answer_generation():
 
     mock_generate.assert_not_called()
 
-    assert result.answer == "Could you please provide a little more detail about what you're asking about?"
+    assert (
+        result.answer
+        == "Could you please provide a little more detail about what you're asking about?"
+    )
+    assert result.citations == []
+
+
+def test_retrieval_exception_returns_refusal_and_does_not_crash():
+    with patch(
+        "app.services.query.retrieve_chunks",
+        side_effect=RuntimeError("retrieval failed"),
+    ):
+        result = answer_query("Anything?")
+
+    assert result.answer == REFUSAL_MESSAGE
     assert result.citations == []

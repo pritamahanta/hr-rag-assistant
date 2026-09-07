@@ -5,4 +5,4 @@ __pycache__/
 .pytest_cache/
 .vscode/
 .idea/
-data/
+data/pytest -q

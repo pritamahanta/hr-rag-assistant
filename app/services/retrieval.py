@@ -49,15 +49,6 @@ def retrieve_chunks(
             )
         )
 
-        print(
-    [
-        {
-            "section": chunk.section,
-            "distance": round(chunk.distance, 3),
-        }
-        for chunk in chunks
-    ]
-)
     return chunks
 
 

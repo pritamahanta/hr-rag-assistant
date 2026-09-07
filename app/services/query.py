@@ -37,10 +37,21 @@ def answer_query(
     question: str,
     top_k: int = 5,
 ) -> AnswerResponse:
-    chunks = retrieve_chunks(
-        query=question,
-        top_k=top_k,
+    
+    try:
+        chunks = retrieve_chunks(
+            query=question,
+            top_k=top_k,
     )
+    except Exception:
+        logger.exception(
+        "Retrieval failed for query: %r",
+        question,
+    )
+        return AnswerResponse(
+            answer=REFUSAL_MESSAGE,
+            citations=[],
+        )
 
     if not chunks:
         return AnswerResponse(
