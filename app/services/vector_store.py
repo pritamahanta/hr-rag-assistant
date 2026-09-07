@@ -39,3 +39,20 @@ def search_chunks(
         query_embeddings=[query_embedding],
         n_results=top_k,
     )
+
+def delete_document(
+    document: str,
+    target_collection=None,
+) -> int:
+    target = target_collection or collection
+
+    results = target.get(
+        where={"document": document},
+    )
+
+    ids = results.get("ids", [])
+
+    if ids:
+        target.delete(ids=ids)
+
+    return len(ids)

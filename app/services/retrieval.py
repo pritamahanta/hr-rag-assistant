@@ -50,17 +50,6 @@ def retrieve_chunks(
                 chunk_id=chunk_id,
             )
         )
-
-    print(
-        [
-            {
-                "section": chunk.section,
-                "distance": chunk.distance,
-            }
-            for chunk in chunks
-        ]
-    )
-
     return chunks
 
 
