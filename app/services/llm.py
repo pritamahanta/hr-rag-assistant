@@ -1,7 +1,7 @@
 from groq import Groq
 
 from app.core.config import GROQ_API_KEY
-from app.models.schemas import LLMResponse
+from app.models.schemas import LLMResponse, QueryResolution
 
 
 MODEL_NAME = "openai/gpt-oss-20b"
@@ -14,23 +14,18 @@ def _get_client() -> Groq:
         raise RuntimeError(
             "GROQ_API_KEY is not configured. Add it to .env before asking questions."
         )
+
     global _client
+
     if _client is None:
         _client = Groq(api_key=GROQ_API_KEY)
+
     return _client
 
 
 LLM_RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
-        "decision": {
-            "type": "string",
-            "enum": [
-                "answer",
-                "clarify",
-                "refuse",
-            ],
-        },
         "answer": {
             "type": "string",
         },
@@ -42,9 +37,27 @@ LLM_RESPONSE_SCHEMA = {
         },
     },
     "required": [
-        "decision",
         "answer",
         "source_ids",
+    ],
+    "additionalProperties": False,
+}
+
+
+QUERY_RESOLUTION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "decision": {
+            "type": "string",
+            "enum": [
+                "answer",
+                "clarify",
+                "refuse",
+            ],
+        },
+    },
+    "required": [
+        "decision",
     ],
     "additionalProperties": False,
 }
@@ -58,39 +71,31 @@ def generate_answer(
 
     response = client.chat.completions.create(
         model=MODEL_NAME,
+        temperature=0.0,
         messages=[
             {
                 "role": "system",
                 "content": (
-                        "You are an internal HR policy assistant. "
-                        "Answer the user's question using only the provided policy context. "
-                        "Do not use outside knowledge. "
+                    "You are an internal HR policy assistant. "
 
-                        "Choose exactly one decision: "
-                        "'answer', 'clarify', or 'refuse'. "
+                    "Answer the user's question using ONLY the provided "
+                    "policy context. "
 
-                        "Use 'answer' when the policy context contains enough information "
-                        "to answer the user's question specifically and accurately. "
+                    "Do not use general knowledge, assumptions, or information "
+                    "that is not supported by the provided policy context. "
 
-                        "Use 'clarify' when the policy context is relevant to the user's "
-                        "question, but the user's question is ambiguous or missing information "
-                        "needed to determine exactly what they are asking. "
-                        "For example, if the user asks 'How many leave days do I have?' "
-                        "and the context contains multiple types of leave, ask which type "
-                        "of leave they mean. "
-                        "The clarification must be based only on concepts present in the "
-                        "provided policy context. "
+                    "Only provide an answer when the policy context directly "
+                    "supports the answer. Do not infer missing policy rules. "
 
-                        "Use 'refuse' when the provided policy context does not contain "
-                        "enough relevant information to answer the question. "
-                        "Do not guess. "
+                    "Return the source_ids of the provided context entries "
+                    "that directly support the answer. "
 
-                        "For 'answer', return the source_ids of the provided context entries "
-                        "that directly support the answer. "
+                    "Never invent, modify, or guess a source_id. "
 
-                        "For 'clarify' and 'refuse', return an empty source_ids array. "
+                    "If the provided policy context does not support an answer, "
+                    "return an empty answer and an empty source_ids array. "
 
-                        "Never invent or modify a source_id."
+                    "Return only the structured response defined by the schema."
                 ),
             },
             {
@@ -112,5 +117,72 @@ def generate_answer(
     )
 
     return LLMResponse.model_validate_json(
+        response.choices[0].message.content
+    )
+
+
+def resolve_query(
+    question: str,
+    context: str,
+) -> QueryResolution:
+    client = _get_client()
+
+    response = client.chat.completions.create(
+        model=MODEL_NAME,
+        temperature=0.0,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a strict evidence resolver for an internal HR policy assistant. "
+
+                    "Your ONLY task is to determine whether the user's question can be "
+                    "answered using ONLY the provided policy context. "
+
+                    "You MUST use only the provided policy context. "
+                    "Do not use general knowledge, assumptions, or unsupported information. "
+
+                    "Choose exactly one decision: 'answer', 'clarify', or 'refuse'. "
+
+                    "Choose 'answer' only when the policy context contains sufficient "
+                    "information to answer the user's specific question accurately. "
+
+                    "Choose 'clarify' when the policy context is relevant to the user's "
+                    "question, but the question is ambiguous or missing information needed "
+                    "to determine exactly what the user is asking. "
+
+                    "Choose 'refuse' when the policy context does not contain enough "
+                    "relevant information to answer the question, or when the question "
+                    "cannot be safely resolved from the context. "
+
+                    "Do not answer the user's question. "
+                    "Return only the decision."
+                    "Every material part of the user's question must be supported by the "
+                    "provided policy context. If any material part of the requested answer "
+                    "is not explicitly supported, do not choose 'answer'. "
+                    
+                    "Do not partially answer a question when part of what the user is asking "
+                    "is unsupported. Choose 'refuse' instead."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Policy context:\n\n{context}\n\n"
+                    f"Question:\n{question}"
+                ),
+            },
+        ],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "query_resolution",
+                "strict": True,
+                "schema": QUERY_RESOLUTION_SCHEMA,
+            },
+        },
+    )
+
+    return QueryResolution.model_validate_json(
         response.choices[0].message.content
     )
