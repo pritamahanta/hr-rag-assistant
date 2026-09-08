@@ -48,15 +48,14 @@ def create_chunks(sections: list[dict]) -> list[DocumentChunk]:
 
         for index, text in enumerate(text_chunks):
             chunk_id = (
-                f"{section['document']}-"
-                f"{section['section'] or 'unknown'}-"
-                f"{index}"
+                    f"{section['document']}-"
+                    f"chunk-{len(chunks)}"
             )
 
             chunks.append(
                 DocumentChunk(
                     text = text,
-                    document=section["document"],
+                    document=section["document"],   
                     section=section["section"],
                     page=section["page"],
                     chunk_id=chunk_id,

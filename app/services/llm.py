@@ -95,7 +95,14 @@ def generate_answer(
                     "If the provided policy context does not support an answer, "
                     "return an empty answer and an empty source_ids array. "
 
-                    "Return only the structured response defined by the schema."
+                    "Return only the structured response defined by the schema. "
+
+                    "Answer the user's question clearly and naturally in a complete sentence. "
+
+                    "Do not return only a number, word, or fragment when a short complete "
+                    "sentence can answer the question. "
+
+                    "Preserve the meaning of the policy and do not add unsupported information. "
                 ),
             },
             {
@@ -134,7 +141,7 @@ def resolve_query(
             {
                 "role": "system",
                 "content": (
-                    "You are a strict evidence resolver for an internal HR policy assistant. "
+                   "You are a strict evidence resolver for an internal HR policy assistant. "
 
                     "Your ONLY task is to determine whether the user's question can be "
                     "answered using ONLY the provided policy context. "
@@ -148,19 +155,36 @@ def resolve_query(
                     "information to answer the user's specific question accurately. "
 
                     "Choose 'clarify' when the policy context is relevant to the user's "
-                    "question, but the question is ambiguous or missing information needed "
-                    "to determine exactly what the user is asking. "
+                    "question, but the question is genuinely ambiguous or is missing "
+                    "information needed to determine exactly what the user is asking. "
+
+                    "Treat natural, informal, abbreviated, or grammatically incomplete "
+                    "phrasing as equivalent to a clearly stated policy question when the "
+                    "intended policy concept is unambiguous from the question and context. "
+
+                    "Do not choose 'clarify' merely because of capitalization differences, "
+                    "missing punctuation, informal grammar, or conversational wording. "
+
+                    "For example, 'How many casual leaves we have' and "
+                    "'How many casual leave days do employees receive?' should be treated "
+                    "as the same question when the policy context clearly identifies "
+                    "casual leave. "
+
+                    "Choose 'clarify' only when there is genuine ambiguity about what "
+                    "policy concept the user is asking about, or required information is "
+                    "actually missing. "
 
                     "Choose 'refuse' when the policy context does not contain enough "
                     "relevant information to answer the question, or when the question "
                     "cannot be safely resolved from the context. "
 
                     "Do not answer the user's question. "
-                    "Return only the decision."
+                    "Return only the decision. "
+
                     "Every material part of the user's question must be supported by the "
                     "provided policy context. If any material part of the requested answer "
                     "is not explicitly supported, do not choose 'answer'. "
-                    
+
                     "Do not partially answer a question when part of what the user is asking "
                     "is unsupported. Choose 'refuse' instead."
                 ),
