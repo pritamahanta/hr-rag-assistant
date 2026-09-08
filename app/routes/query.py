@@ -6,7 +6,7 @@ router = APIRouter(tags=["Query"])
 
 
 @router.post("/query", response_model=AnswerResponse)
-async def query_policies(request: QueryRequest) -> AnswerResponse:
+def query_policies(request: QueryRequest) -> AnswerResponse:
     question = request.question.strip()
 
     if not question:

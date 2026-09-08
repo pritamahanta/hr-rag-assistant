@@ -8,8 +8,11 @@ const askButton = document.getElementById("askButton");
 const answerElement = document.getElementById("answer");
 const citationsElement = document.getElementById("citations");
 
+const documentsList = document.getElementById("documentsList");
+
 
 loadDocuments();
+
 
 uploadButton.addEventListener("click", async () => {
     const file = fileInput.files[0];
@@ -38,6 +41,7 @@ uploadButton.addEventListener("click", async () => {
         }
 
         uploadStatus.textContent = `${data.filename} uploaded successfully.`;
+
         await loadDocuments();
 
     } catch (error) {
@@ -81,7 +85,8 @@ askButton.addEventListener("click", async () => {
         answerElement.textContent = data.answer;
 
         if (data.citations.length === 0) {
-            citationsElement.innerHTML = '<p class="no-sources">No supporting sources available.</p>';
+            citationsElement.innerHTML =
+                '<p class="no-sources">No supporting sources available.</p>';
             return;
         }
 
@@ -89,22 +94,27 @@ askButton.addEventListener("click", async () => {
             const citationElement = document.createElement("div");
             citationElement.className = "citation";
 
-            const section = citation.section
+            const documentElement = document.createElement("strong");
+            documentElement.textContent = citation.document;
+
+            const sectionElement = document.createElement("span");
+            sectionElement.textContent = citation.section
                 ? `Section: ${citation.section}`
                 : "Section: N/A";
 
-            const page = citation.page !== ""
-                ? `Page: ${citation.page}`
-                : "";
+            citationElement.appendChild(documentElement);
+            citationElement.appendChild(sectionElement);
 
-            citationElement.innerHTML = `
-                <strong>${citation.document}</strong>
-                <span>${section}</span>
-                ${page ? `<span>${page}</span>` : ""}
-            `;
+            if (citation.page !== "") {
+                const pageElement = document.createElement("span");
+                pageElement.textContent = `Page: ${citation.page}`;
+
+                citationElement.appendChild(pageElement);
+            }
 
             citationsElement.appendChild(citationElement);
         });
+
     } catch (error) {
         answerElement.textContent = error.message;
         citationsElement.innerHTML = "";
@@ -112,8 +122,6 @@ askButton.addEventListener("click", async () => {
         askButton.disabled = false;
     }
 });
-
-const documentsList = document.getElementById("documentsList");
 
 
 async function loadDocuments() {
@@ -126,10 +134,13 @@ async function loadDocuments() {
 
         const data = await response.json();
 
-        documentsList.innerHTML = "";
+        documentsList.textContent = "";
 
         if (data.documents.length === 0) {
-            documentsList.innerHTML = "<p>No documents uploaded.</p>";
+            const emptyMessage = document.createElement("p");
+            emptyMessage.textContent = "No documents uploaded.";
+
+            documentsList.appendChild(emptyMessage);
             return;
         }
 
@@ -137,20 +148,31 @@ async function loadDocuments() {
             const row = document.createElement("div");
             row.className = "document-row";
 
-            row.innerHTML = `
-                <span>${filename}</span>
-                <button class="delete-button">Delete</button>
-            `;
+            const filenameElement = document.createElement("span");
+            filenameElement.textContent = filename;
 
-            row.querySelector(".delete-button").addEventListener(
+            const deleteButton = document.createElement("button");
+            deleteButton.className = "delete-button";
+            deleteButton.textContent = "Delete";
+
+            deleteButton.addEventListener(
                 "click",
                 () => deleteDocument(filename)
             );
 
+            row.appendChild(filenameElement);
+            row.appendChild(deleteButton);
+
             documentsList.appendChild(row);
         });
+
     } catch (error) {
-        documentsList.innerHTML = `<p>${error.message}</p>`;
+        documentsList.textContent = "";
+
+        const errorMessage = document.createElement("p");
+        errorMessage.textContent = error.message;
+
+        documentsList.appendChild(errorMessage);
     }
 }
 
@@ -175,10 +197,13 @@ async function deleteDocument(filename) {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.detail || "Failed to delete document.");
+            throw new Error(
+                data.detail || "Failed to delete document."
+            );
         }
 
         await loadDocuments();
+
     } catch (error) {
         window.alert(error.message);
     }
