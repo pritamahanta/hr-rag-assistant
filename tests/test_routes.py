@@ -68,3 +68,23 @@ def test_query_returns_500_when_query_service_fails():
     assert response.json()["detail"] == (
         "The query service is temporarily unavailable. Please try again."
     )
+
+
+def test_upload_rejects_oversized_file():
+    oversized_content = b"A" * (10 * 1024 * 1024 + 1)
+
+    response = client.post(
+        "/documents/upload",
+        files={
+            "file": (
+                "large_policy.txt",
+                oversized_content,
+                "text/plain",
+            )
+        },
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == (
+        "Uploaded file is too large. Maximum size is 10 MB."
+    )

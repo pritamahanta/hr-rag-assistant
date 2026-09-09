@@ -7,6 +7,7 @@ router = APIRouter(prefix="/documents", tags=["Documents"])
 
 UPLOAD_DIR = Path("data/documents")
 ALLOWED_EXTENSIONS = {".md", ".txt", ".pdf"}
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 @router.get("/")
@@ -52,6 +53,12 @@ def upload_document(file: UploadFile = File(...)):
         raise HTTPException(
             status_code=400,
             detail="Uploaded file is empty.",
+        )
+
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="Uploaded file is too large. Maximum size is 10 MB.",
         )
 
     file_path.write_bytes(content)
