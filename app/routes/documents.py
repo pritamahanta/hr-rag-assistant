@@ -1,5 +1,7 @@
 from pathlib import Path
+
 from fastapi import APIRouter, File, HTTPException, UploadFile
+
 from app.services.ingestion import ingest_document
 from app.services.vector_store import delete_document
 
@@ -9,9 +11,6 @@ router = APIRouter(prefix="/documents", tags=["Documents"])
 UPLOAD_DIR = Path("data/documents")
 ALLOWED_EXTENSIONS = {".md", ".txt", ".pdf"}
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
-
-# Prototype-only authorization flag.
-IS_ADMIN = True
 
 
 @router.get("/")
@@ -31,12 +30,6 @@ def list_documents():
 
 @router.post("/upload")
 def upload_document(file: UploadFile = File(...)):
-    if not IS_ADMIN:
-        raise HTTPException(
-            status_code=403,
-            detail="Admin access required.",
-        )
-
     if not file.filename:
         raise HTTPException(
             status_code=400,
@@ -90,12 +83,6 @@ def upload_document(file: UploadFile = File(...)):
 
 @router.delete("/{filename}")
 def delete_uploaded_document(filename: str):
-    if not IS_ADMIN:
-        raise HTTPException(
-            status_code=403,
-            detail="Admin access required.",
-        )
-
     filename = Path(filename).name
     file_path = UPLOAD_DIR / filename
 

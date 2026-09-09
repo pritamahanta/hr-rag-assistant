@@ -91,34 +91,3 @@ def test_upload_rejects_oversized_file():
 
 
 
-def test_upload_requires_admin():
-    with patch(
-        "app.routes.documents.IS_ADMIN",
-        False,
-    ):
-        response = client.post(
-            "/documents/upload",
-            files={
-                "file": (
-                    "policy.txt",
-                    b"policy content",
-                    "text/plain",
-                )
-            },
-        )
-
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Admin access required."
-
-
-def test_delete_requires_admin():
-    with patch(
-        "app.routes.documents.IS_ADMIN",
-        False,
-    ):
-        response = client.delete(
-            "/documents/example.txt",
-        )
-
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Admin access required."
