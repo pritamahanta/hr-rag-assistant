@@ -1,5 +1,6 @@
 import chromadb
 
+
 CHROMA_PATH = "data/chroma"
 
 client = chromadb.PersistentClient(path=CHROMA_PATH)
@@ -10,6 +11,7 @@ collection = client.get_or_create_collection(
     name=COLLECTION_NAME,
     configuration={"hnsw": {"space": "cosine"}},
 )
+
 
 def add_chunks(
     texts: list[str],
@@ -40,6 +42,36 @@ def search_chunks(
         n_results=top_k,
     )
 
+
+def get_all_chunks(
+    target_collection=None,
+) -> dict:
+    target = target_collection or collection
+
+    return target.get(
+        include=["documents"],
+    )
+
+
+def get_chunks_by_ids(
+    ids: list[str],
+    target_collection=None,
+) -> dict:
+    target = target_collection or collection
+
+    if not ids:
+        return {
+            "documents": [],
+            "metadatas": [],
+            "ids": [],
+        }
+
+    return target.get(
+        ids=ids,
+        include=["documents", "metadatas"],
+    )
+
+
 def delete_document(
     document: str,
     target_collection=None,
@@ -68,7 +100,10 @@ def replace_document(
 ) -> None:
     target = target_collection or collection
 
-    delete_document(document, target_collection=target)
+    delete_document(
+        document,
+        target_collection=target,
+    )
 
     target.add(
         documents=texts,
