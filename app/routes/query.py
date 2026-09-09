@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException
+
 from app.models.schemas import AnswerResponse, QueryRequest
-from app.services.query import answer_query
+from app.services.query import QueryServiceError, answer_query
+
 
 router = APIRouter(tags=["Query"])
 
@@ -11,8 +13,14 @@ def query_policies(request: QueryRequest) -> AnswerResponse:
 
     if not question:
         raise HTTPException(
-            status_code = 400,
+            status_code=400,
             detail="Question must not be empty.",
         )
 
-    return answer_query(question=question)
+    try:
+        return answer_query(question=question)
+    except QueryServiceError:
+        raise HTTPException(
+            status_code=500,
+            detail="The query service is temporarily unavailable. Please try again.",
+        )

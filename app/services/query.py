@@ -9,10 +9,15 @@ from app.services.retrieval import retrieve_chunks
 logger = logging.getLogger(__name__)
 
 
+class QueryServiceError(Exception):
+    """Raised when the query pipeline fails unexpectedly."""
+
+
 REFUSAL_MESSAGE = (
     "I couldn't find enough information in the available HR policies to answer that. "
     "Please contact HR."
 )
+
 CLARIFICATION_MESSAGE = (
     "Could you please provide a little more detail about what you're asking about?"
 )
@@ -37,21 +42,18 @@ def answer_query(
     question: str,
     top_k: int = 5,
 ) -> AnswerResponse:
-    
+
     try:
         chunks = retrieve_chunks(
             query=question,
             top_k=top_k,
-    )
-    except Exception:
-        logger.exception(
-        "Retrieval failed for query: %r",
-        question,
-    )
-        return AnswerResponse(
-            answer=REFUSAL_MESSAGE,
-            citations=[],
         )
+    except Exception as exc:
+        logger.exception(
+            "Retrieval failed for query: %r",
+            question,
+        )
+        raise QueryServiceError("Retrieval failed.") from exc
 
     if not chunks:
         return AnswerResponse(
@@ -66,15 +68,12 @@ def answer_query(
             question=question,
             context=context,
         )
-    except Exception:
+    except Exception as exc:
         logger.exception(
             "Query resolution failed for query: %r",
             question,
         )
-        return AnswerResponse(
-            answer=REFUSAL_MESSAGE,
-            citations=[],
-        )
+        raise QueryServiceError("Query resolution failed.") from exc
 
     if resolution.decision == "refuse":
         return AnswerResponse(
@@ -93,15 +92,12 @@ def answer_query(
             question=question,
             context=context,
         )
-    except Exception:
+    except Exception as exc:
         logger.exception(
             "LLM call failed while answering query: %r",
             question,
         )
-        return AnswerResponse(
-            answer=REFUSAL_MESSAGE,
-            citations=[],
-        )
+        raise QueryServiceError("Answer generation failed.") from exc
 
     if not llm_response.source_ids:
         return AnswerResponse(
@@ -118,7 +114,7 @@ def answer_query(
         return AnswerResponse(
             answer=REFUSAL_MESSAGE,
             citations=[],
-    )
+        )
 
     return AnswerResponse(
         answer=llm_response.answer,
