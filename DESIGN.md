@@ -306,11 +306,11 @@ The API returns structured JSON instead of free-form response text so the fronte
 
 ## 6. Key Trade-offs
 
-### 6.1 Character-based chunking vs. more complex semantic chunking
+### 6.1 Line-aware chunking vs. more complex semantic or token-aware chunking
 
-A more advanced semantic or token-aware chunking strategy could produce better boundaries, but it would add complexity and more tuning for a small policy corpus.
+A more advanced semantic or token-aware chunking strategy could produce better retrieval boundaries, but it would add complexity and more tuning for a small policy corpus.
 
-The current approach first preserves document sections and only splits long sections when necessary. This gives a simple and explainable baseline while retaining policy structure.
+The current approach preserves document sections and splits long content at line boundaries where possible. If a single line exceeds the chunk limit, it falls back to character-based splitting. This is intentionally simple and helps avoid breaking structured content such as table rows unnecessarily.
 
 ### 6.2 Chroma vs. a production database such as pgvector
 
@@ -326,24 +326,13 @@ It was rejected because semantic distance varies across query types. Ambiguous, 
 
 The final design therefore uses top-k retrieval as candidate evidence and a separate grounded resolver for the semantic decision.
 
-### 6.4 LLM-generated clarification vs. generic clarification
+### 6.4 Two LLM calls vs. a single generation call
 
-Generating a detailed clarification directly from the LLM can make the UI more conversational, but it also introduces a risk of mentioning policy concepts that were not actually established by the policy.
+The query pipeline uses two LLM calls: one grounded resolver first decides whether the query should be answered, clarified, or refused, and a second call generates the final answer with source IDs.
 
-The prototype therefore uses a fixed backend clarification message:
+This adds latency and LLM cost compared with using a single generation call. The trade-off is stronger control over refusal and clarification behavior because the decision to answer is separated from answer generation.
 
-```text
-Could you please provide a little more detail about what you're asking about?
-```
-
-This keeps clarification behavior predictable and avoids introducing unsupported policy terminology.
-
-### 6.5 Vanilla frontend vs. React/Next.js
-
-A framework-based frontend would provide more structure for a larger product, but the assignment only requires a simple UI.
-
-A small vanilla frontend keeps the demo easy to run and keeps implementation effort focused on the backend retrieval and grounding design.
-
+For a small assignment-scale corpus, the additional call is acceptable because reliability and grounded behavior are more important than minimizing latency.
 ---
 
 ## 7. What I Would Harden With Two More Weeks
