@@ -36,3 +36,39 @@ def test_large_text_is_split():
     assert len(chunks) > 1
     assert all(chunk.document == "large_policy.md" for chunk in chunks)
     assert all(chunk.section == "Example" for chunk in chunks)
+
+
+def test_long_table_rows_are_not_split():
+    header = "| Plan | Benefit | Limit |\n"
+    rows = [
+        f"| Plan {i} | Benefit description for plan {i} | Limit {i} |\n"
+        for i in range(100)
+    ]
+
+    table = header + "".join(rows)
+
+    assert len(table) > 1000
+
+    chunks = create_chunks(
+        [
+            {
+                "text": table,
+                "document": "benefits.md",
+                "section": "Benefits",
+                "page": None,
+            }
+        ]
+    )
+
+    assert len(chunks) > 1
+
+    original_rows = {
+        row.strip()
+        for row in table.splitlines()
+        if row.strip()
+    }
+
+    for chunk in chunks:
+        for line in chunk.text.splitlines():
+            if line.strip().startswith("|"):
+                assert line.strip() in original_rows
