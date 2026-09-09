@@ -56,3 +56,35 @@ def test_ingestion_rejects_document_with_no_extractable_text(
         match="No extractable text found in document: empty_policy.pdf",
     ):
         ingest_document(file_path)
+
+def test_ingestion_rebuilds_keyword_index(tmp_path):
+    file_path = tmp_path / "leave_policy.md"
+
+    file_path.write_text(
+        """# Casual Leave
+
+Employees receive 12 casual leave days.
+""",
+        encoding="utf-8",
+    )
+
+    client = chromadb.EphemeralClient()
+
+    test_collection = client.create_collection(
+        name="test_keyword_sync",
+    )
+
+    ingest_document(
+        file_path,
+        target_collection=test_collection,
+    )
+
+    from app.services.keyword_search import keyword_index
+
+    results = keyword_index.search(
+        query="12 casual leave days",
+        top_k=1,
+    )
+
+    assert results
+    assert results[0][0] == "leave_policy.md-chunk-0"
