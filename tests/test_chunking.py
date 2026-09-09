@@ -72,3 +72,34 @@ def test_long_table_rows_are_not_split():
         for line in chunk.text.splitlines():
             if line.strip().startswith("|"):
                 assert line.strip() in original_rows
+
+
+def test_long_table_header_is_preserved_in_each_chunk():
+    header = "| Plan | Benefit | Limit |"
+    separator = "|------|---------|-------|"
+
+    rows = [
+        f"| Plan {i} | Benefit description for plan {i} | Limit {i} |"
+        for i in range(100)
+    ]
+
+    table = "\n".join([header, separator, *rows])
+
+    assert len(table) > 1000
+
+    chunks = create_chunks(
+        [
+            {
+                "text": table,
+                "document": "benefits.md",
+                "section": "Benefits",
+                "page": None,
+            }
+        ]
+    )
+
+    assert len(chunks) > 1
+
+    for chunk in chunks:
+        assert header in chunk.text
+        assert separator in chunk.text
