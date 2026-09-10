@@ -1,17 +1,22 @@
+import os
+
 import chromadb
+from dotenv import load_dotenv
 
-
-CHROMA_PATH = "data/chroma"
-
-client = chromadb.PersistentClient(path=CHROMA_PATH)
+load_dotenv(".env")
 
 COLLECTION_NAME = "hr_policies"
+
+client = chromadb.CloudClient(
+    api_key=os.environ["CHROMA_API_KEY"],
+    tenant=os.environ["CHROMA_TENANT"],
+    database=os.environ["CHROMA_DATABASE"],
+)
 
 collection = client.get_or_create_collection(
     name=COLLECTION_NAME,
     configuration={"hnsw": {"space": "cosine"}},
 )
-
 
 def add_chunks(
     texts: list[str],
