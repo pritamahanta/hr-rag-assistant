@@ -1,8 +1,12 @@
 from dataclasses import dataclass
 
 from app.services.embedding import generate_embedding
-from app.services.keyword_search import keyword_index
+from app.services.keyword_search import (
+    keyword_index,
+    rebuild_keyword_index,
+)
 from app.services.vector_store import (
+    get_all_chunks,
     get_chunks_by_ids,
     search_chunks,
 )
@@ -45,10 +49,30 @@ def reciprocal_rank_fusion(
     ]
 
 
+def ensure_keyword_index() -> None:
+    if keyword_index.ids:
+        return
+
+    results = get_all_chunks()
+
+    rebuild_keyword_index(
+        texts=[
+            metadata.get("search_text", document)
+            for metadata, document in zip(
+                results.get("metadatas", []),
+                results.get("documents", []),
+            )
+        ],
+        ids=results.get("ids", []),
+    )
+
+
 def retrieve_chunks(
     query: str,
     top_k: int = 5,
 ) -> list[RetrievedChunk]:
+    ensure_keyword_index()
+
     candidate_k = max(top_k * 2, 10)
 
     query_embedding = generate_embedding(query)
@@ -58,8 +82,6 @@ def retrieve_chunks(
         top_k=candidate_k,
     )
 
-    vector_documents = vector_results["documents"][0]
-    vector_metadatas = vector_results["metadatas"][0]
     vector_distances = vector_results["distances"][0]
     vector_ids = vector_results["ids"][0]
 

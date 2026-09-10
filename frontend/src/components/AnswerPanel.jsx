@@ -1,6 +1,6 @@
 function AnswerPanel({ answer, citations }) {
   return (
-    <section className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <section className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <h2 className="text-xl font-semibold text-gray-900">Answer</h2>
 
       {answer ? (
@@ -19,25 +19,31 @@ function AnswerPanel({ answer, citations }) {
             Sources
           </h3>
 
-          <div className="mt-3 space-y-3">
+          <div className="mt-3 space-y-2">
             {citations.map((citation, index) => (
               <div
                 key={`${citation.document}-${citation.section}-${citation.page}-${index}`}
-                className="rounded-lg bg-gray-50 p-4"
+                className="flex gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"
               >
-                <p className="font-medium text-gray-900">
-                  {citation.document}
-                </p>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-700">
+                  {index + 1}
+                </span>
 
-                <p className="mt-1 text-sm text-gray-600">
-                  Section: {citation.section || "N/A"}
-                </p>
-
-                {citation.page !== "" && (
-                  <p className="mt-1 text-sm text-gray-600">
-                    Page: {citation.page}
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900">
+                    {citation.document}
                   </p>
-                )}
+
+                  <p className="mt-1 text-sm leading-5 text-gray-600">
+                    {citation.section || "Section unavailable"}
+                  </p>
+
+                  {citation.page !== "" && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Page {citation.page}
+                    </p>
+                  )}
+                </div>
               </div>
             ))}
           </div>
