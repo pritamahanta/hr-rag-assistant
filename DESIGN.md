@@ -31,7 +31,7 @@ The prototype uses FastAPI for the backend, Chroma for vector search, local sent
 - **Chroma Vector Store**
   - Stores chunk text, embeddings, metadata, and deterministic chunk IDs.
   - Uses cosine distance for semantic retrieval.
-  - **BM25 Keyword Index**
+- **BM25 Keyword Index**
   - Maintains an in-memory lexical index over indexed chunks.
   - Supports exact-term and keyword-based retrieval.
   - Rebuilt when the indexed corpus changes.
@@ -178,6 +178,7 @@ Both retrieval methods return ranked chunk IDs. The rankings are combined using 
 Vector ranking ──┐
                  ├──> RRF ──> final ranked candidates
 BM25 ranking ────┘
+```
 ---
 
 ## 4. Grounding & Refusal
@@ -274,7 +275,7 @@ The system safely refuses when:
 - the final response has no source IDs
 - returned source IDs do not map to retrieved chunks
 
-Unexpected infrastructure or service failures in retrieval, query resolution, or answer generation are logged server-side and surfaced to the API as a safe HTTP 500 response rather than being presented as a policy refusal.
+Unexpected infrastructure or service failures in retrieval, query resolution, or answer generation are logged server-side and surfaced to the API as HTTP 500 rather than being presented as a policy refusal. Policy silence remains a refusal outcome.
 
 The assignment requires the model not to answer from general knowledge when the policy is silent, so refusal is treated as a first-class outcome.
 
@@ -376,11 +377,11 @@ With additional time, I would extend this into a real model evaluation harness t
 
 ### 7.2 Better PDF and table extraction
 
-The current PDF pipeline successfully handles simple structured policy tables, but arbitrary real-world PDFs can have complex layouts.
+The current PDF pipeline has been validated with simple table-formatted policy content, but arbitrary real-world PDFs can have complex layouts and there is no dedicated PDF table extractor.
 
 The next hardening step would be stronger table-aware extraction and preservation of relationships between rows, columns, headings, and cells.
 
-### 7.3 Hybrid retrieval
+### 7.3 Retrieval reranking
 
 The current system combines vector and BM25 retrieval using RRF. A next step would be to add a dedicated reranker over the fused candidate set.
 
@@ -388,7 +389,7 @@ A reranker could improve ordering when multiple semantically related chunks are 
 
 ### 7.4 Authentication and asynchronous ingestion
 
-For a production system, I would add real admin/employee authorization and move larger document ingestion to an asynchronous job flow so uploads do not block request handling.
+For a production system, I would add real authentication/RBAC and move larger document ingestion to an asynchronous job flow so uploads do not block request handling.
 
 These are intentionally outside the prototype scope.
 
@@ -399,7 +400,7 @@ These are intentionally outside the prototype scope.
 
 - PDF section headings are not always available, so PDF citations may use page metadata with `section` reported as unavailable.
 - Chunking is line-aware rather than token-aware or fully semantic.
-- PDF extraction does not use dedicated table reconstruction; structured-table handling has been validated on simple table-formatted policy content.
+- PDF extraction does not use a dedicated table extractor; simple table-formatted policy content has been validated.
 - The BM25 lexical index is maintained in memory and rebuilt when the indexed corpus changes, so it is not independently persistent across application restarts.
 - The vector store is local Chroma rather than a production database.
 - The prototype does not implement real authentication or multi-tenant isolation.

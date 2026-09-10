@@ -9,7 +9,7 @@ The system retrieves relevant policy content, checks whether the question can be
 - Upload Markdown (`.md`), text (`.txt`), and PDF (`.pdf`) HR policies
 - Section-aware document parsing and chunking
 - Local semantic embeddings
-- Chroma vector search
+- Hybrid retrieval with Chroma vector search, BM25 lexical search, and Reciprocal Rank Fusion
 - Natural-language policy questions
 - Structured `answer / clarify / refuse` query resolution
 - Grounded LLM answers with structured JSON output
@@ -28,13 +28,14 @@ The system retrieves relevant policy content, checks whether the question can be
 | Backend API | FastAPI |
 | Frontend | HTML, CSS, JavaScript |
 | Vector store | Chroma |
+| Lexical search | BM25 in-memory index |
 | Embeddings | `sentence-transformers` — `all-MiniLM-L6-v2` |
 | LLM | Groq — `openai/gpt-oss-20b` |
 | PDF parsing | `pypdf` |
 | Validation | Pydantic |
 | Testing | pytest |
 
-Embeddings are generated locally. Only the final query-resolution and answer-generation calls use the remote LLM provider.
+Embeddings are generated locally. The resolver and final answer-generation calls use the remote LLM provider.
 
 ## Project Structure
 
@@ -50,7 +51,6 @@ hr-rag-assistant/
 │   ├── style.css
 │   └── app.js
 ├── tests/
-├── test_documents/
 ├── data/                 # local runtime data; ignored by Git
 ├── .env
 ├── .env.example
@@ -226,19 +226,23 @@ Evidence resolver
 ```
 
 The final answer generator is instructed to use only the retrieved policy context.
+The LLM flow has two steps: the resolver first chooses `answer`, `clarify`, or `refuse`, and answer generation runs only for an `answer` decision.
 
 Citations are reconstructed by the backend from the actual retrieved chunks. Model-generated source IDs are accepted only when they match a retrieved chunk.
 
-If retrieval, resolution, generation, or citation validation fails, the system uses a safe refusal response instead of returning an unsupported answer.
+If retrieval, resolution, or answer generation fails because of an infrastructure or service error, the API returns HTTP 500. Policy silence, an explicit refusal decision, or invalid citation evidence returns the safe refusal response instead of an unsupported answer.
 
 ## Retrieval Details
 
 - Embedding model: `all-MiniLM-L6-v2`
 - Vector store: Chroma
+- Lexical search: BM25 over an in-memory index, rebuilt when the indexed corpus changes
+- Rank fusion: Reciprocal Rank Fusion (RRF)
 - Distance metric: cosine
 - Retrieval size: top 5 chunks
 - Maximum chunk size: 1000 characters
 - Chunk overlap: 150 characters
+- Chunking: section-aware and line-aware; table headers and separator rows are propagated across table chunks
 - Chunk metadata: document, section, page, chunk ID
 
 The retrieval layer provides candidate evidence. It does not use a single hardcoded embedding-distance threshold as the final answerability gate. Answerability is determined using the retrieved context and the evidence resolver.
@@ -262,8 +266,8 @@ The current test suite covers document chunking, ingestion, retrieval, citations
 ## Notes and Limitations
 
 - PDF section headings are not always available, so PDF citations may use page metadata without a section heading.
-- Chunking is currently character-based rather than token-aware or fully semantic.
+- Chunking is line-aware rather than token-aware or fully semantic. Simple table-formatted policies have been validated, but PDF parsing does not include a dedicated table extractor.
 - Chroma is used as a local vector store for the prototype.
-- Authentication, multi-tenancy, production deployment, and other production infrastructure are outside the scope of this prototype.
+- Authentication/RBAC, multi-tenancy, production deployment, and other production infrastructure are outside the scope of this prototype.
 
 For the design rationale, trade-offs, grounding flow, and future hardening ideas, see [`DESIGN.md`](DESIGN.md).
