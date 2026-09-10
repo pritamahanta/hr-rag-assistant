@@ -19,40 +19,61 @@ def parse_markdown_file(file_path: Path) -> list[dict]:
     text = file_path.read_text(encoding="utf-8")
 
     sections = []
-    current_section = None
+    heading_stack: list[tuple[int, str]] = []
     current_lines = []
+
+    def current_section_path() -> str | None:
+        if not heading_stack:
+            return None
+
+        return " > ".join(
+            heading
+            for _, heading in heading_stack
+        )
+
+    def add_section():
+        if not current_lines:
+            return
+
+        sections.append(
+            {
+                "text": "\n".join(current_lines).strip(),
+                "document": file_path.name,
+                "section": current_section_path(),
+                "page": "",
+            }
+        )
 
     for line in text.splitlines():
         stripped = line.strip()
 
         if stripped.startswith("#"):
-            if current_lines:
-                sections.append(
-                    {
-                        "text": "\n".join(current_lines).strip(),
-                        "document": file_path.name,
-                        "section": current_section,
-                        "page": "",
-                    }
-                )
+            heading_level = len(stripped) - len(stripped.lstrip("#"))
+            heading_text = stripped.lstrip("#").strip()
 
-            current_section = stripped.lstrip("#").strip()
+            add_section()
+
+            while (
+                heading_stack
+                and heading_stack[-1][0] >= heading_level
+            ):
+                heading_stack.pop()
+
+            heading_stack.append(
+                (heading_level, heading_text)
+            )
+
             current_lines = []
         else:
             current_lines.append(line)
 
-    if current_lines:
-        sections.append(
-            {
-                "text": "\n".join(current_lines).strip(),
-                "document": file_path.name,
-                "section": current_section,
-                "page": "",
-            }
-        )
+    add_section()
 
-    return [section for section in sections if section["text"]]
-
+    return [
+        section
+        for section in sections
+        if section["text"]
+    ]
 
 def parse_pdf_file(file_path: Path) -> list[dict]:
     reader = PdfReader(file_path)

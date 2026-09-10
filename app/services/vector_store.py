@@ -49,7 +49,7 @@ def get_all_chunks(
     target = target_collection or collection
 
     return target.get(
-        include=["documents"],
+        include=["documents", "metadatas"],
     )
 
 

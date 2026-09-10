@@ -88,3 +88,81 @@ Employees receive 12 casual leave days.
 
     assert results
     assert results[0][0] == "leave_policy.md-chunk-0"
+
+
+def test_ingestion_indexes_document_and_section_context(tmp_path):
+    file_path = tmp_path / "health_policy.md"
+
+    file_path.write_text(
+        """# Health Insurance
+
+## Dental Implant Coverage
+
+Covered up to 50,000 under Premium.
+""",
+        encoding="utf-8",
+    )
+
+    client = chromadb.EphemeralClient()
+
+    test_collection = client.create_collection(
+        name="test_indexed_context",
+    )
+
+    ingest_document(
+        file_path,
+        target_collection=test_collection,
+    )
+
+    results = test_collection.get(
+        include=["documents", "metadatas"],
+    )
+
+    assert results["documents"]
+
+    indexed_document = results["documents"][0]
+    metadata = results["metadatas"][0]
+
+    assert indexed_document == (
+        "Covered up to 50,000 under Premium."
+    )
+
+    assert metadata["search_text"] == (
+        "Document: health_policy.md\n"
+        "Section: Health Insurance > Dental Implant Coverage\n"
+        "Content: Covered up to 50,000 under Premium."
+    )
+
+def test_section_context_is_available_to_keyword_index(tmp_path):
+    file_path = tmp_path / "health_policy.md"
+
+    file_path.write_text(
+        """# Health Insurance
+
+## Dental Implant Coverage
+
+Covered up to 50,000 under Premium.
+""",
+        encoding="utf-8",
+    )
+
+    client = chromadb.EphemeralClient()
+
+    test_collection = client.create_collection(
+        name="test_keyword_section_context",
+    )
+
+    ingest_document(
+        file_path,
+        target_collection=test_collection,
+    )
+
+    from app.services.keyword_search import keyword_index
+
+    results = keyword_index.search(
+        query="health insurance",
+        top_k=1,
+    )
+
+    assert results
+    assert results[0][0] == "health_policy.md-chunk-0"
