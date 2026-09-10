@@ -128,6 +128,8 @@ Markdown documents are parsed using their headings as section boundaries. PDF do
 
 The system uses section-aware, line-aware chunking:
 
+Nested Markdown headings are preserved as breadcrumb section paths, for example `Health Insurance > Dental Implant Coverage`. This section context is included in the searchable text used for both embeddings and BM25.
+
 - Maximum chunk size: **1000 characters**
 - Overlap target: **150 characters**
 
