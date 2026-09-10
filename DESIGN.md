@@ -31,6 +31,10 @@ The prototype uses FastAPI for the backend, Chroma for vector search, local sent
 - **Chroma Vector Store**
   - Stores chunk text, embeddings, metadata, and deterministic chunk IDs.
   - Uses cosine distance for semantic retrieval.
+  - **BM25 Keyword Index**
+  - Maintains an in-memory lexical index over indexed chunks.
+  - Supports exact-term and keyword-based retrieval.
+  - Rebuilt when the indexed corpus changes.
 - **Query Service**
   - Coordinates retrieval, evidence resolution, answer generation, and citation validation.
 - **LLM Service**
@@ -67,33 +71,41 @@ Indexed policy chunks
 
                        QUERY FLOW
 
+
 Employee question
-      |
-      v
-Query embedding
-      |
-      v
-Top-5 semantic retrieval
-      |
-      v
-Retrieved policy context
-      |
-      v
-Evidence resolver
-   /      |       \
-answer  clarify  refuse
-  |
-  v
-Grounded answer generation
-  |
-  v
-Structured answer + source_ids
-  |
-  v
-Backend citation validation
-  |
-  v
-Answer + citations
+        |
+        v
+   Query embedding
+        |
+        +--------------------+
+        |                    |
+        v                    v
+ Vector search            BM25 search
+        |                    |
+        +---------+----------+
+                  |
+                  v
+     Reciprocal Rank Fusion
+                  |
+                  v
+       Top-k candidate chunks
+                  |
+                  v
+         Evidence resolver
+          /       |       \
+      answer   clarify   refuse
+         |
+         v
+ Grounded answer generation
+         |
+         v
+ Structured answer + source_ids
+         |
+         v
+ Backend citation validation
+         |
+         v
+     Answer + citations
 ```
 
 The frontend communicates with the same FastAPI application and does not contain separate business logic for retrieval or grounding.
@@ -114,12 +126,16 @@ Markdown documents are parsed using their headings as section boundaries. PDF do
 
 ### Chunking
 
-The system uses section-aware character-based chunking:
+The system uses section-aware, line-aware chunking:
 
 - Maximum chunk size: **1000 characters**
-- Overlap: **150 characters**
+- Overlap target: **150 characters**
 
 A section smaller than the maximum size remains intact.
+
+Long content is split at line boundaries where possible rather than cutting arbitrarily through text. If a single line exceeds the maximum chunk size, it falls back to character-based splitting.
+
+Markdown-style tables receive additional handling. Table rows are preserved as complete lines, and when a table spans multiple chunks, the table header and separator row are repeated in each table chunk. This helps preserve column meaning during retrieval.
 
 Chunking is performed after section extraction instead of splitting the entire document blindly. This keeps policy rules grouped by their logical section whenever possible.
 
@@ -150,16 +166,18 @@ all-MiniLM-L6-v2
 
 This avoids sending policy text to a remote embedding service and avoids additional API usage.
 
-### Vector search
+### Hybrid retrieval
 
-Chroma is configured to use cosine distance.
+The retrieval layer combines semantic vector search with lexical BM25 search.
 
-For every query, the system retrieves the top **5** candidate chunks.
+Chroma performs dense vector retrieval using cosine distance. BM25 provides lexical matching for exact terms, policy identifiers, clause references, benefit names, and structured values.
 
-The retrieval layer is intentionally kept simple: vector similarity provides candidate evidence, but similarity distance alone is not treated as proof that a question is answerable.
+Both retrieval methods return ranked chunk IDs. The rankings are combined using Reciprocal Rank Fusion (RRF):
 
-A fixed distance threshold was considered and rejected because queries with different levels of specificity can produce overlapping similarity ranges. Instead, semantic answerability is determined by the evidence resolver using the retrieved context.
-
+```text
+Vector ranking ──┐
+                 ├──> RRF ──> final ranked candidates
+BM25 ranking ────┘
 ---
 
 ## 4. Grounding & Refusal
@@ -168,7 +186,9 @@ Grounding is implemented as multiple layers rather than relying only on a prompt
 
 ### Step 1 — retrieve evidence
 
-The user's question is embedded and the top 5 candidate chunks are retrieved from Chroma.
+The user's question is embedded and sent to both the vector and BM25 retrieval paths.
+
+Their ranked results are combined using Reciprocal Rank Fusion (RRF), producing the final top 5 candidate chunks.
 
 If no chunks are available, the system immediately returns the safe refusal response.
 
@@ -250,12 +270,11 @@ This makes citation validation a backend responsibility rather than relying enti
 The system safely refuses when:
 
 - retrieval returns no chunks
-- retrieval fails
-- query resolution fails
-- the resolver returns `refuse`
-- the final LLM call fails
+- the resolver explicitly returns `refuse`
 - the final response has no source IDs
 - returned source IDs do not map to retrieved chunks
+
+Unexpected infrastructure or service failures in retrieval, query resolution, or answer generation are logged server-side and surfaced to the API as a safe HTTP 500 response rather than being presented as a policy refusal.
 
 The assignment requires the model not to answer from general knowledge when the policy is silent, so refusal is treated as a first-class outcome.
 
@@ -333,15 +352,27 @@ The query pipeline uses two LLM calls: one grounded resolver first decides wheth
 This adds latency and LLM cost compared with using a single generation call. The trade-off is stronger control over refusal and clarification behavior because the decision to answer is separated from answer generation.
 
 For a small assignment-scale corpus, the additional call is acceptable because reliability and grounded behavior are more important than minimizing latency.
+
+
+### 6.5 Hybrid retrieval vs. vector-only retrieval
+
+Vector search is strong at semantic similarity, but exact policy terms, identifiers, clause references, and structured values can benefit from lexical matching.
+
+The final design therefore combines vector retrieval with BM25 and merges their rankings using RRF.
+
+This improves retrieval robustness at the cost of maintaining an additional lexical index and rebuilding that index when the document corpus changes.
+
+For the prototype, the BM25 index is maintained in memory rather than persisted separately. A production implementation could use a persistent lexical index or a database-backed search engine.
+
 ---
 
 ## 7. What I Would Harden With Two More Weeks
 
 ### 7.1 Evaluation harness
 
-I would add a small regression dataset containing representative questions, expected answers, expected citations, and expected refusal/clarification outcomes.
+A small regression scenario set is already included to exercise representative answer, clarification, and refusal paths.
 
-Every retrieval or prompt change could then be evaluated automatically instead of relying primarily on manual testing.
+With additional time, I would extend this into a real model evaluation harness that runs a fixed policy corpus through the actual LLM and measures answer correctness, refusal correctness, retrieval quality, and citation correctness automatically.
 
 ### 7.2 Better PDF and table extraction
 
@@ -351,7 +382,9 @@ The next hardening step would be stronger table-aware extraction and preservatio
 
 ### 7.3 Hybrid retrieval
 
-Keyword + vector retrieval would improve cases involving exact policy identifiers, clause numbers, employee benefit codes, or structured table values where lexical matching can complement semantic similarity.
+The current system combines vector and BM25 retrieval using RRF. A next step would be to add a dedicated reranker over the fused candidate set.
+
+A reranker could improve ordering when multiple semantically related chunks are retrieved, especially as the policy corpus grows.
 
 ### 7.4 Authentication and asynchronous ingestion
 
@@ -363,8 +396,11 @@ These are intentionally outside the prototype scope.
 
 ## 8. Current Limitations
 
+
 - PDF section headings are not always available, so PDF citations may use page metadata with `section` reported as unavailable.
-- Chunking is character-based rather than token-aware or semantic.
+- Chunking is line-aware rather than token-aware or fully semantic.
+- PDF extraction does not use dedicated table reconstruction; structured-table handling has been validated on simple table-formatted policy content.
+- The BM25 lexical index is maintained in memory and rebuilt when the indexed corpus changes, so it is not independently persistent across application restarts.
 - The vector store is local Chroma rather than a production database.
 - The prototype does not implement real authentication or multi-tenant isolation.
 - Document replacement is implemented as delete-and-reinsert, so transactional rollback around indexing would be a future hardening area.
