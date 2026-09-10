@@ -1,37 +1,29 @@
+import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
+from app.core.auth import require_admin
 from app.services.ingestion import ingest_document
 from app.services.keyword_search import rebuild_keyword_index
-from app.services.vector_store import (
-    delete_document,
-    get_all_chunks,
-)
-from app.core.auth import require_admin
+from app.services.storage import delete_file, list_files, upload_file
+from app.services.vector_store import delete_document, get_all_chunks
 
 router = APIRouter(
     prefix="/documents",
     tags=["Documents"],
 )
 
-UPLOAD_DIR = Path("data/documents")
 ALLOWED_EXTENSIONS = {".md", ".txt", ".pdf"}
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 @router.get("/")
 def list_documents():
-    UPLOAD_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
     documents = [
-        path.name
-        for path in UPLOAD_DIR.iterdir()
-        if path.is_file()
-        and path.suffix.lower() in ALLOWED_EXTENSIONS
+        filename
+        for filename in list_files()
+        if Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
     ]
 
     return {
@@ -59,13 +51,6 @@ def upload_document(
             detail="Unsupported file type. Allowed types: .md, .txt, .pdf",
         )
 
-    UPLOAD_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    file_path = UPLOAD_DIR / filename
-
     content = file.file.read()
 
     if not content:
@@ -80,17 +65,36 @@ def upload_document(
             detail="Uploaded file is too large. Maximum size is 10 MB.",
         )
 
-    file_path.write_bytes(content)
+    with tempfile.NamedTemporaryFile(
+        suffix=extension,
+        delete=False,
+    ) as temp_file:
+        temp_file.write(content)
+        temp_path = Path(temp_file.name)
 
     try:
-        chunks_indexed = ingest_document(file_path)
+        upload_file(
+            file_path=str(temp_path),
+            storage_path=filename,
+        )
+
+        chunks_indexed = ingest_document(
+            temp_path,
+            document_name=filename,
+        )
     except Exception as exc:
-        file_path.unlink(missing_ok=True)
+        try:
+            delete_file(filename)
+        except Exception:
+            pass
 
         raise HTTPException(
             status_code=500,
             detail=f"Document ingestion failed: {exc}",
         ) from exc
+
+    finally:
+        temp_path.unlink(missing_ok=True)
 
     return {
         "message": "Document uploaded and indexed successfully.",
@@ -102,12 +106,17 @@ def upload_document(
 @router.delete("/{filename}")
 def delete_uploaded_document(
     filename: str,
-     _: str = Depends(require_admin),
+    _: str = Depends(require_admin),
 ):
     filename = Path(filename).name
-    file_path = UPLOAD_DIR / filename
 
-    file_exists = file_path.exists()
+    try:
+        delete_file(filename)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete document file: {exc}",
+        ) from exc
 
     chunks_deleted = delete_document(filename)
 
@@ -118,16 +127,7 @@ def delete_uploaded_document(
         ids=results.get("ids", []),
     )
 
-    if file_exists:
-        try:
-            file_path.unlink()
-        except OSError as exc:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to delete document file: {exc}",
-            ) from exc
-
-    if chunks_deleted == 0 and not file_exists:
+    if chunks_deleted == 0:
         raise HTTPException(
             status_code=404,
             detail="Document not found.",

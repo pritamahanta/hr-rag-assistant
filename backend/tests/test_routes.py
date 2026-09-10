@@ -110,9 +110,15 @@ def test_upload_requires_admin():
 
 
 def test_upload_allows_admin():
-    with patch(
-        "app.routes.documents.ingest_document",
-        return_value=1,
+    with (
+        patch(
+            "app.routes.documents.upload_file",
+            return_value=None,
+        ),
+        patch(
+            "app.routes.documents.ingest_document",
+            return_value=1,
+        ),
     ):
         response = client.post(
             "/documents/upload",

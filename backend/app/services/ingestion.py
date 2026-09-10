@@ -26,13 +26,21 @@ def build_index_text(
 def ingest_document(
     file_path: Path,
     target_collection=None,
+    document_name: str | None = None,
 ) -> int:
+    document = document_name or file_path.name
+
     sections = parse_document(file_path)
+
+    # Preserve the logical document name even when processing a temporary file.
+    for section in sections:
+        section["document"] = document
+
     chunks = create_chunks(sections)
 
     if not chunks:
         raise IngestionError(
-            f"No extractable text found in document: {file_path.name}"
+            f"No extractable text found in document: {document}"
         )
 
     texts = [chunk.text for chunk in chunks]
@@ -61,7 +69,7 @@ def ingest_document(
     ids = [chunk.chunk_id for chunk in chunks]
 
     replace_document(
-        document=file_path.name,
+        document=document,
         texts=texts,
         embeddings=embeddings,
         metadatas=metadatas,
@@ -75,8 +83,8 @@ def ingest_document(
 
     rebuild_keyword_index(
         texts=[
-            metadata.get("search_text", document)
-            for metadata, document in zip(
+            metadata.get("search_text", doc_text)
+            for metadata, doc_text in zip(
                 results.get("metadatas", []),
                 results.get("documents", []),
             )
