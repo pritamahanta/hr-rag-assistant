@@ -158,7 +158,7 @@ def resolve_query(
             {
                 "role": "system",
                 "content": (
-                   "You are a strict evidence resolver for an internal HR policy assistant. "
+                    "You are a strict evidence resolver for an internal HR policy assistant. "
 
                     "Your ONLY task is to determine whether the user's question can be "
                     "answered using ONLY the provided policy context. "
@@ -171,9 +171,17 @@ def resolve_query(
                     "Choose 'answer' only when the policy context contains sufficient "
                     "information to answer the user's specific question accurately. "
 
-                    "Choose 'clarify' when the policy context is relevant to the user's "
-                    "question, but the question is genuinely ambiguous or is missing "
-                    "information needed to determine exactly what the user is asking. "
+                    "Choose 'clarify' ONLY when the user's question itself is genuinely "
+                    "ambiguous or is missing information needed to identify what the user "
+                    "is asking. "
+
+                    "Choose 'refuse' when the user's intent is clear, but the provided "
+                    "policy context does not explicitly contain enough information to answer "
+                    "the question. "
+
+                    "Do NOT choose 'clarify' merely because the policy does not contain "
+                    "the requested rule, permission, restriction, limit, or condition. "
+                    "If the question is clear but the policy is silent, choose 'refuse'. "
 
                     "Treat natural, informal, abbreviated, or grammatically incomplete "
                     "phrasing as equivalent to a clearly stated policy question when the "
@@ -187,13 +195,21 @@ def resolve_query(
                     "as the same question when the policy context clearly identifies "
                     "casual leave. "
 
-                    "Choose 'clarify' only when there is genuine ambiguity about what "
-                    "policy concept the user is asking about, or required information is "
-                    "actually missing. "
+                    "Choose 'clarify' only when there are multiple reasonable interpretations "
+                    "of the user's question, or when the user has failed to specify a key "
+                    "piece of information required to identify the requested policy rule. "
 
-                    "Choose 'refuse' when the policy context does not contain enough "
-                    "relevant information to answer the question, or when the question "
-                    "cannot be safely resolved from the context. "
+                    "For example, 'How many leave days do I get?' may require clarification "
+                    "because the user has not specified which type of leave they mean. "
+
+                    "However, 'Can I take 30 days of leave continuously?' is not ambiguous "
+                    "about what the user is asking. If the policy does not state whether "
+                    "30 consecutive days are allowed, choose 'refuse', not 'clarify'. "
+
+                    "Likewise, if the policy says leave is credited on January 1 but does "
+                    "not state whether leave may be taken in January, do not infer that it "
+                    "is allowed. The question is clear but the policy is silent, so choose "
+                    "'refuse'. "
 
                     "Do not answer the user's question. "
                     "Return only the decision. "
