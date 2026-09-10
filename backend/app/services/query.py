@@ -38,15 +38,31 @@ def build_context(chunks) -> str:
     return "\n\n---\n\n".join(context_parts)
 
 
+def is_enumeration_query(question: str) -> bool:
+    question = question.lower()
+
+    patterns = (
+        "what types",
+        "which types",
+        "how many types",
+        "what are the types",
+        "list the types",
+    )
+
+    return any(pattern in question for pattern in patterns)
+
+
 def answer_query(
     question: str,
     top_k: int = 5,
 ) -> AnswerResponse:
 
     try:
+        retrieval_k = 8 if is_enumeration_query(question) else top_k
+
         chunks = retrieve_chunks(
             query=question,
-            top_k=top_k,
+            top_k=retrieval_k,
         )
     except Exception as exc:
         logger.exception(
@@ -120,3 +136,4 @@ def answer_query(
         answer=llm_response.answer,
         citations=citations,
     )
+
