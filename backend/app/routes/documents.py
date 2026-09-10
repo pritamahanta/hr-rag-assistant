@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
 
 from app.services.ingestion import ingest_document
 from app.services.keyword_search import rebuild_keyword_index
@@ -8,7 +8,7 @@ from app.services.vector_store import (
     delete_document,
     get_all_chunks,
 )
-
+from app.core.auth import require_admin
 
 router = APIRouter(
     prefix="/documents",
@@ -42,6 +42,7 @@ def list_documents():
 @router.post("/upload")
 def upload_document(
     file: UploadFile = File(...),
+    _: str = Depends(require_admin),
 ):
     if not file.filename:
         raise HTTPException(
@@ -101,6 +102,7 @@ def upload_document(
 @router.delete("/{filename}")
 def delete_uploaded_document(
     filename: str,
+     _: str = Depends(require_admin),
 ):
     filename = Path(filename).name
     file_path = UPLOAD_DIR / filename
