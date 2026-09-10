@@ -1,3 +1,5 @@
+const API_URL = import.meta.env.VITE_API_URL;
+
 import { useState } from "react";
 import QueryPanel from "./components/QueryPanel";
 import AnswerPanel from "./components/AnswerPanel";
@@ -24,11 +26,11 @@ function App() {
     setCitations([]);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/query", {
+      const response = await fetch(`${API_URL}/query`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-User-Role": "employee",
+          "X-User-Role": role,
         },
         body: JSON.stringify({
           question: trimmedQuestion,
@@ -101,26 +103,17 @@ function App() {
             ← Back
           </button>
 
-          <header className="mt-8">
+          <header className="mt-6">
             <h1 className="text-3xl font-bold text-gray-900">
               Admin Dashboard
             </h1>
 
             <p className="mt-2 text-base text-gray-600">
-              Manage HR policies and ask policy questions.
+              Manage HR policies.
             </p>
           </header>
 
           <DocumentManager />
-
-          <QueryPanel
-            question={question}
-            setQuestion={setQuestion}
-            onAsk={handleAsk}
-            loading={loading}
-          />
-
-          <AnswerPanel answer={answer} citations={citations} />
         </div>
       </main>
     );
