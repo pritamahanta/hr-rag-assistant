@@ -1,5 +1,8 @@
 import logging
 
+from fastapi import HTTPException
+from groq import RateLimitError
+
 from app.models.schemas import AnswerResponse
 from app.services.citations import build_citations
 from app.services.llm import generate_answer, resolve_query
@@ -38,31 +41,15 @@ def build_context(chunks) -> str:
     return "\n\n---\n\n".join(context_parts)
 
 
-def is_enumeration_query(question: str) -> bool:
-    question = question.lower()
-
-    patterns = (
-        "what types",
-        "which types",
-        "how many types",
-        "what are the types",
-        "list the types",
-    )
-
-    return any(pattern in question for pattern in patterns)
-
-
 def answer_query(
     question: str,
-    top_k: int = 5,
+    top_k: int = 8,
 ) -> AnswerResponse:
 
     try:
-        retrieval_k = 8 if is_enumeration_query(question) else top_k
-
         chunks = retrieve_chunks(
             query=question,
-            top_k=retrieval_k,
+            top_k=top_k,
         )
     except Exception as exc:
         logger.exception(
@@ -84,6 +71,20 @@ def answer_query(
             question=question,
             context=context,
         )
+
+    except RateLimitError as exc:
+        logger.exception(
+            "Groq rate limit during query resolution: question=%r",
+            question,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The policy assistant is temporarily unavailable. "
+                "Please try again later."
+            ),
+        ) from exc
+
     except Exception as exc:
         logger.exception(
             "Query resolution failed for query: %r",
@@ -91,15 +92,15 @@ def answer_query(
         )
         raise QueryServiceError("Query resolution failed.") from exc
 
-    if resolution.decision == "refuse":
-        return AnswerResponse(
-            answer=REFUSAL_MESSAGE,
-            citations=[],
-        )
-
     if resolution.decision == "clarify":
         return AnswerResponse(
             answer=CLARIFICATION_MESSAGE,
+            citations=[],
+        )
+
+    if resolution.decision == "refuse":
+        return AnswerResponse(
+            answer=REFUSAL_MESSAGE,
             citations=[],
         )
 
@@ -108,18 +109,26 @@ def answer_query(
             question=question,
             context=context,
         )
+
+    except RateLimitError as exc:
+        logger.exception(
+            "Groq rate limit during answer generation: question=%r",
+            question,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The policy assistant is temporarily unavailable. "
+                "Please try again later."
+            ),
+        ) from exc
+
     except Exception as exc:
         logger.exception(
-            "LLM call failed while answering query: %r",
+            "Answer generation failed for query: %r",
             question,
         )
         raise QueryServiceError("Answer generation failed.") from exc
-
-    if not llm_response.source_ids:
-        return AnswerResponse(
-            answer=REFUSAL_MESSAGE,
-            citations=[],
-        )
 
     citations = build_citations(
         chunks,
@@ -136,4 +145,3 @@ def answer_query(
         answer=llm_response.answer,
         citations=citations,
     )
-
