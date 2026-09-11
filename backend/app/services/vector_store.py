@@ -7,16 +7,27 @@ load_dotenv(".env")
 
 COLLECTION_NAME = "hr_policies"
 
-client = chromadb.CloudClient(
-    api_key=os.environ["CHROMA_API_KEY"],
-    tenant=os.environ["CHROMA_TENANT"],
-    database=os.environ["CHROMA_DATABASE"],
-)
+_client = None
+_collection = None
 
-collection = client.get_or_create_collection(
-    name=COLLECTION_NAME,
-    configuration={"hnsw": {"space": "cosine"}},
-)
+
+def get_collection():
+    global _client, _collection
+
+    if _collection is None:
+        _client = chromadb.CloudClient(
+            api_key=os.environ["CHROMA_API_KEY"],
+            tenant=os.environ["CHROMA_TENANT"],
+            database=os.environ["CHROMA_DATABASE"],
+        )
+
+        _collection = _client.get_or_create_collection(
+            name=COLLECTION_NAME,
+            configuration={"hnsw": {"space": "cosine"}},
+        )
+
+    return _collection
+
 
 def add_chunks(
     texts: list[str],
@@ -25,7 +36,7 @@ def add_chunks(
     ids: list[str],
     target_collection=None,
 ) -> None:
-    target = target_collection or collection
+    target = target_collection or get_collection()
 
     target.add(
         documents=texts,
@@ -40,7 +51,7 @@ def search_chunks(
     top_k: int = 5,
     target_collection=None,
 ) -> dict:
-    target = target_collection or collection
+    target = target_collection or get_collection()
 
     return target.query(
         query_embeddings=[query_embedding],
@@ -51,7 +62,7 @@ def search_chunks(
 def get_all_chunks(
     target_collection=None,
 ) -> dict:
-    target = target_collection or collection
+    target = target_collection or get_collection()
 
     return target.get(
         include=["documents", "metadatas"],
@@ -62,14 +73,14 @@ def get_chunks_by_ids(
     ids: list[str],
     target_collection=None,
 ) -> dict:
-    target = target_collection or collection
-
     if not ids:
         return {
             "documents": [],
             "metadatas": [],
             "ids": [],
         }
+
+    target = target_collection or get_collection()
 
     return target.get(
         ids=ids,
@@ -81,7 +92,7 @@ def delete_document(
     document: str,
     target_collection=None,
 ) -> int:
-    target = target_collection or collection
+    target = target_collection or get_collection()
 
     results = target.get(
         where={"document": document},
@@ -103,7 +114,7 @@ def replace_document(
     ids: list[str],
     target_collection=None,
 ) -> None:
-    target = target_collection or collection
+    target = target_collection or get_collection()
 
     delete_document(
         document,
