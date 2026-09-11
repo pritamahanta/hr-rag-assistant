@@ -66,3 +66,20 @@ def test_section_index_returns_empty_for_top_level_section():
     )
 
     assert index.get_siblings("Leave Policy") == []
+
+
+def test_section_index_does_not_expand_top_level_children():
+    index = SectionSiblingIndex()
+
+    index.build(
+        ids=["purpose-1", "leave-types-1", "accrual-1"],
+        metadatas=[
+            {"section": "Leave Policy > 1. Purpose"},
+            {"section": "Leave Policy > 2. Leave types"},
+            {"section": "Leave Policy > 3. Accrual"},
+        ],
+    )
+
+    assert index.get_siblings(
+        "Leave Policy > 1. Purpose"
+    ) == []

@@ -5,6 +5,10 @@ from app.services.keyword_search import (
     keyword_index,
     rebuild_keyword_index,
 )
+from app.services.section_index import (
+    rebuild_section_index,
+    section_index,
+)
 from app.services.vector_store import (
     get_all_chunks,
     get_chunks_by_ids,
@@ -49,29 +53,38 @@ def reciprocal_rank_fusion(
     ]
 
 
-def ensure_keyword_index() -> None:
-    if keyword_index.ids:
+def ensure_search_indexes() -> None:
+    if keyword_index.ids and section_index.siblings:
         return
 
     results = get_all_chunks()
+
+    ids = results.get("ids", [])
+    documents = results.get("documents", [])
+    metadatas = results.get("metadatas", [])
 
     rebuild_keyword_index(
         texts=[
             metadata.get("search_text", document)
             for metadata, document in zip(
-                results.get("metadatas", []),
-                results.get("documents", []),
+                metadatas,
+                documents,
             )
         ],
-        ids=results.get("ids", []),
+        ids=ids,
+    )
+
+    rebuild_section_index(
+        ids=ids,
+        metadatas=metadatas,
     )
 
 
 def retrieve_chunks(
     query: str,
-    top_k: int = 5,
+    top_k: int = 8,
 ) -> list[RetrievedChunk]:
-    ensure_keyword_index()
+    ensure_search_indexes()
 
     candidate_k = max(top_k * 2, 10)
 
@@ -111,7 +124,39 @@ def retrieve_chunks(
         )
     }
 
-    chunks = get_chunks_by_ids(ranked_ids)
+    initial_chunks = get_chunks_by_ids(ranked_ids)
+
+    initial_chunks_by_id = {
+        chunk_id: {
+            "document": document,
+            "metadata": metadata,
+        }
+        for chunk_id, document, metadata in zip(
+            initial_chunks["ids"],
+            initial_chunks["documents"],
+            initial_chunks["metadatas"],
+        )
+    }
+
+    expanded_ids = list(ranked_ids)
+    seen_ids = set(expanded_ids)
+
+    for chunk_id in ranked_ids:
+        chunk = initial_chunks_by_id.get(chunk_id)
+
+        if not chunk:
+            continue
+
+        section = chunk["metadata"].get("section")
+
+        sibling_ids = section_index.get_siblings(section)
+
+        for sibling_id in sibling_ids:
+            if sibling_id not in seen_ids:
+                expanded_ids.append(sibling_id)
+                seen_ids.add(sibling_id)
+
+    chunks = get_chunks_by_ids(expanded_ids)
 
     chunks_by_id = {
         chunk_id: RetrievedChunk(
@@ -131,6 +176,6 @@ def retrieve_chunks(
 
     return [
         chunks_by_id[chunk_id]
-        for chunk_id in ranked_ids
+        for chunk_id in expanded_ids
         if chunk_id in chunks_by_id
     ]

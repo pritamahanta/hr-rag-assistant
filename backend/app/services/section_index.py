@@ -26,7 +26,7 @@ class SectionSiblingIndex:
         self,
         section: str | None,
     ) -> list[str]:
-        if not section or " > " not in section:
+        if not section or section.count(" > ") < 2:
             return []
 
         parent = section.rsplit(" > ", 1)[0]
