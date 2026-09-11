@@ -110,11 +110,11 @@ The LLM calls are external. The backend, not the browser, selects context, decid
 
 ### 3.2 Query / RAG Flow
 
-`POST /query` validates `QueryRequest`, trims the question, and rejects an empty result with HTTP 400. `retrieval.py` ensures BM25 exists, embeds the query, and asks Chroma and BM25 for candidate rankings. Each path supplies `max(top_k * 2, 10)` candidates. Their IDs are fused with RRF; normal queries use 5 final chunks, while recognized enumeration questions use 8. Retrieval produces the candidate evidence set; the resolver determines whether that evidence is sufficient for the specific question.
+`POST /query` validates `QueryRequest`, trims the question, and rejects an empty result with HTTP 400. `retrieval.py` ensures BM25 exists, embeds the query, and asks Chroma and BM25 for candidate rankings. Each path supplies `max(top_k * 2, 10)` candidates. Their IDs are fused with RRF using the default `top_k=8`, then sibling sections are added only when a retrieved chunk belongs to a nested section and those siblings share the same parent section. Retrieval produces the candidate evidence set; the resolver determines whether that evidence is sufficient for the specific question.
 
 `query.py` formats each chunk with an internal source ID, document, section, page, and content. `resolve_query` sends that context to Groq and requires one structured decision: `answer`, `clarify`, or `refuse`. Only `answer` invokes the second Groq call, which returns structured `answer` and `source_ids`. The backend validates those IDs against the chunks retrieved for this request, creates deduplicated citations, and returns `AnswerResponse` to React.
 
-Empty retrieval, resolver refusal, or missing/invalid citations returns the canonical refusal with no citations. A genuine ambiguity returns a fixed clarification with no citations. Retrieval, resolver, and generation exceptions become HTTP 500 through `QueryServiceError`; infrastructure failure is not mislabeled as policy refusal.
+Empty retrieval, resolver refusal, or missing/invalid citations returns the canonical refusal with no citations. A genuine ambiguity returns a fixed clarification with no citations. Unexpected retrieval, resolver, and generation exceptions become HTTP 500 through `QueryServiceError`, while Groq rate-limit failures return HTTP 503; infrastructure failure is not mislabeled as policy refusal.
 
 ## 4. Retrieval Architecture
 
@@ -130,7 +130,7 @@ The in-memory `rank-bm25` index tokenizes the same enriched text. It helps with 
 RRF score(chunk) = sum(1 / (60 + rank)) for each ranking containing it
 ```
 
-RRF combines rank positions without pretending Chroma distances and BM25 scores share a scale. It returns 5 chunks normally and 8 for the implemented enumeration patterns (`what types`, `which types`, `how many types`, `what are the types`, `list the types`). There is no semantic-distance answerability threshold; retrieval produces the candidate evidence set, while the resolver decides whether it is sufficient for the specific question.
+RRF combines rank positions without pretending Chroma distances and BM25 scores share a scale. It returns the default `top_k=8` chunks for all queries, then adds sibling sections only when a retrieved chunk belongs to a nested section and those siblings share the same parent section. There is no semantic-distance answerability threshold; retrieval produces the candidate evidence set, while the resolver decides whether it is sufficient for the specific question.
 
 ## 5. Grounding, Clarification, and Refusal
 
@@ -198,7 +198,7 @@ The frontend is responsible for role selection, question input, upload/delete co
 | `GET /documents/` | None | `{ "documents": [...] }`; storage failures are server errors |
 | `POST /documents/upload` | Multipart `file`; `X-User-Role: admin` | Message, filename, `chunks_indexed`; `400` invalid/empty/type, `403` non-admin, `413` over 10 MiB, `500` ingestion failure |
 | `DELETE /documents/{filename}` | Path filename; `X-User-Role: admin` | Message, filename, `chunks_deleted`; `403`, `404` if no indexed chunks, or `500` storage failure |
-| `POST /query` | `{ "question": "..." }` | `AnswerResponse`; `400` empty after trim or `500` query-service failure |
+| `POST /query` | `{ "question": "..." }` | `AnswerResponse`; `400` empty after trim, `500` unexpected query-service failure, or `503` Groq rate-limit failure |
 
 `AnswerResponse` contains `answer` and `citations`. `Citation` contains `document`, `section`, and `page`. Internal structured models restrict resolution to `answer`, `clarify`, or `refuse`, and LLM output to `answer` plus `source_ids`. Pydantic and Groq JSON schemas make the client boundary predictable; free-form LLM output is not returned directly.
 
