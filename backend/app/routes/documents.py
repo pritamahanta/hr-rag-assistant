@@ -90,7 +90,7 @@ def upload_document(
 
         raise HTTPException(
             status_code=500,
-            detail=f"Document ingestion failed: {exc}",
+            detail="Document ingestion failed. Please try again.",
         ) from exc
 
     finally:
@@ -115,7 +115,7 @@ def delete_uploaded_document(
     except Exception as exc:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to delete document file: {exc}",
+            detail="Failed to delete document. Please try again.",
         ) from exc
 
     chunks_deleted = delete_document(filename)
