@@ -59,12 +59,12 @@ Groq is the LLM provider. The current model is `openai/gpt-oss-20b`, used for qu
 ### Query resolution
 
 1. `POST /query` trims and validates the question.
-2. The query is embedded for Chroma vector search. BM25 searches indexed document, section, and content text. Both paths retrieve up to a candidate set of 10 or more items, then RRF combines their IDs; the normal final set is 5 chunks. Enumeration questions use 8 final chunks.
+2. Retrieval uses `top_k=8`, combines Chroma vector search and BM25 with RRF, then structurally expands retrieved nested sections with their sibling sections when applicable.
 3. A Groq structured-output call classifies the retrieved context as `answer`, `clarify`, or `refuse`.
 4. Only an `answer` decision triggers the second Groq call. The answer generator must use only the supplied context and return source IDs for directly supporting chunks.
 5. The backend accepts only source IDs belonging to the chunks retrieved for this request. It converts them to unique `{document, section, page}` citations. Missing or invalid source IDs cause a refusal.
 
-The canonical refusal is returned when retrieval is empty, the resolver refuses, or a generated answer has no valid citations. A genuinely ambiguous question receives a generic clarification response without citations. Unexpected retrieval or LLM failures are returned as HTTP 500 rather than being mislabeled as policy refusals.
+The canonical refusal is returned when retrieval is empty, the resolver refuses, or a generated answer has no valid citations. A genuinely ambiguous question receives a generic clarification response without citations. Unexpected retrieval or LLM failures return HTTP 500, while Groq rate-limit failures return HTTP 503.
 
 ## Supported Files and Storage
 
@@ -137,8 +137,8 @@ The repository has separate backend and frontend projects.
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 # Set the provider, storage, and frontend-origin variables in .env.
@@ -171,9 +171,40 @@ pytest -q
 
 The repository tests cover parsing, section-aware and table-aware chunking, ingestion and replacement, vector operations, BM25 behavior, RRF retrieval, citation validation, route validation/authorization, and mocked answer/clarify/refuse evaluation cases. They do not constitute a live provider, browser, load, or deployment test.
 
-## Deployment Status, Limitations, and Future Work
+## Deployment
 
-There is no deployment configuration or completed deployment workflow in this repository. A deployment would need a backend process with access to Groq, Chroma Cloud, and Supabase Storage, plus a separately built/hosted Vite frontend whose origin is configured in `FRONTEND_ORIGIN`. This document does not claim that deployment is complete.
+The application can be deployed as two separate Render services from the same repository: a Python web service for the backend and a static site for the frontend. Deploy the backend first so its public URL is available when configuring the frontend.
+
+### Backend: Render Web Service
+
+Create a **Web Service** with these settings:
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | `backend` |
+| Runtime | `Python` |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+
+Add the provider and storage credentials from the [Configuration](#configuration) table as Render environment variables. Set `FRONTEND_ORIGIN` to the deployed frontend URL, for example `https://hr-rag-assistant.onrender.com`.
+
+Add a health check path of `/health`. The endpoint returns `{"status":"ok"}` when the service is running.
+
+### Frontend: Render Static Site
+
+Create a **Static Site** from the same repository with these settings:
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | `frontend` |
+| Build Command | `npm install && npm run build` |
+| Publish Directory | `dist` |
+
+Set the frontend environment variable `VITE_API_URL` to the deployed backend URL, for example `https://hr-rag-assistant-api.onrender.com`. Because this value is read during the Vite build, trigger a new frontend deploy after changing it.
+
+After both services are deployed, verify the backend at `/health`, open the frontend URL, and confirm that browser requests reach the backend without a CORS error. Keep all provider credentials in Render environment variables rather than committing them to the repository.
+
+## Limitations and Future Work
 
 Important current trade-offs and limitations:
 
