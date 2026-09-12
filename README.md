@@ -173,36 +173,27 @@ The repository tests cover parsing, section-aware and table-aware chunking, inge
 
 ## Deployment
 
-The application can be deployed as two separate Render services from the same repository: a Python web service for the backend and a static site for the frontend. Deploy the backend first so its public URL is available when configuring the frontend.
+The application is deployed as two separate Vercel projects from the same repository: one for the FastAPI backend and one for the Vite frontend. Deploy the backend first so its public URL is available when configuring the frontend.
 
-### Backend: Render Web Service
+### Backend: Vercel
 
-Create a **Web Service** with these settings:
+Create a Vercel project with `backend` as the Root Directory. Add the provider and storage credentials from the [Configuration](#configuration) table as Vercel environment variables, and set `FRONTEND_ORIGIN` to the deployed frontend URL.
 
-| Setting | Value |
-| --- | --- |
-| Root Directory | `backend` |
-| Runtime | `Python` |
-| Build Command | `pip install -r requirements.txt` |
-| Start Command | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+The backend endpoint is available at `/health`, which returns `{"status":"ok"}` when the service is running.
 
-Add the provider and storage credentials from the [Configuration](#configuration) table as Render environment variables. Set `FRONTEND_ORIGIN` to the deployed frontend URL, for example `https://hr-rag-assistant.onrender.com`.
+### Frontend: Vercel
 
-Add a health check path of `/health`. The endpoint returns `{"status":"ok"}` when the service is running.
-
-### Frontend: Render Static Site
-
-Create a **Static Site** from the same repository with these settings:
+Create a second Vercel project for the `frontend` directory with these settings:
 
 | Setting | Value |
 | --- | --- |
 | Root Directory | `frontend` |
-| Build Command | `npm install && npm run build` |
+| Build Command | `npm run build` |
 | Publish Directory | `dist` |
 
-Set the frontend environment variable `VITE_API_URL` to the deployed backend URL, for example `https://hr-rag-assistant-api.onrender.com`. Because this value is read during the Vite build, trigger a new frontend deploy after changing it.
+Set the frontend environment variable `VITE_API_URL` to the deployed FastAPI backend URL. Because this value is read during the Vite build, trigger a new frontend deploy after changing it.
 
-After both services are deployed, verify the backend at `/health`, open the frontend URL, and confirm that browser requests reach the backend without a CORS error. Keep all provider credentials in Render environment variables rather than committing them to the repository.
+After both projects are deployed, verify the backend at `/health`, open the frontend URL, and confirm that browser requests reach the backend without a CORS error. Keep all provider credentials in Vercel environment variables rather than committing them to the repository. Supabase Storage stores uploaded policy files, Chroma Cloud stores indexed chunks, and Groq provides the LLM.
 
 ## Limitations and Future Work
 

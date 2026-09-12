@@ -229,15 +229,19 @@ Implemented assignment stretch behaviors are hybrid search, improved Markdown/PD
 
 ## 12. Deployment, Limitations, and Two-Week Plan
 
-The application has not yet been deployed; deployment setup is being handled separately. The intended topology is:
+The current prototype is deployed on Vercel as separate frontend and backend projects. The deployment topology is:
 
 ```text
-React/Vite frontend -> FastAPI backend -> Groq
-                                      -> Chroma Cloud
-                                      -> Supabase Storage
+Vercel React/Vite frontend
+    | VITE_API_URL
+    v
+Vercel FastAPI backend
+    +--> Groq (LLM)
+    +--> Chroma Cloud (indexed chunks)
+    `--> Supabase Storage (uploaded policies)
 ```
 
-The frontend uses `VITE_API_URL`. Backend configuration includes `FRONTEND_ORIGIN`, `GROQ_API_KEY`, `CHROMA_API_KEY`, `CHROMA_TENANT`, and `CHROMA_DATABASE`. `storage.py` also reads `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, and `SUPABASE_STORAGE_BUCKET`.
+The frontend uses `VITE_API_URL` to call the deployed FastAPI backend. Backend CORS uses `FRONTEND_ORIGIN` to allow the deployed frontend origin. Backend configuration also includes `GROQ_API_KEY`, `CHROMA_API_KEY`, `CHROMA_TENANT`, and `CHROMA_DATABASE`. `storage.py` reads `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, and `SUPABASE_STORAGE_BUCKET` for uploaded policies.
 
 Current limitations include spoofable authorization, synchronous ingestion, process-local BM25, text-only PDF extraction, external provider dependency, and no live-model evaluation or observability. The highest-value two-week hardening order would be:
 
