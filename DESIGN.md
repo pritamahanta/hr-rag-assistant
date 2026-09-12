@@ -45,7 +45,7 @@ Local embeddings                                  BM25 rebuild
     |                                             process-local
     v                                             |
 Chroma Cloud                                      |
-chunks, embeddings,                              |
+chunks, embeddings,                               |
 metadata, IDs                                     |
     |                                             |
     +----------------------+----------------------+
@@ -70,7 +70,7 @@ Validate and trim question
 Query embedding                                      BM25 search
     |                                                   |
     v                                                   |
-Chroma vector search                                  |
+Chroma vector search                                    |
     |                                                   |
     +-------------------------+-------------------------+
                               v
