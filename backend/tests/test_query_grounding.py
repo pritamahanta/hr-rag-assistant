@@ -162,3 +162,76 @@ def test_empty_retrieval_returns_policy_refusal():
 
     assert response.answer == REFUSAL_MESSAGE
     assert response.citations == []
+
+
+def test_unsupported_permission_returns_refusal_without_llm_calls():
+    with patch(
+        "app.services.query.retrieve_chunks",
+        return_value=[_strong_chunk()],
+    ), patch("app.services.query.resolve_query") as mock_resolve, patch(
+        "app.services.query.generate_answer"
+    ) as mock_generate:
+        response = answer_query("Can I take leave for a vacation abroad?")
+
+    assert response.answer == REFUSAL_MESSAGE
+    assert response.citations == []
+    mock_resolve.assert_not_called()
+    mock_generate.assert_not_called()
+
+
+def test_explicit_permission_proceeds_to_llm():
+    chunk = RetrievedChunk(
+        text="Casual leave and privilege leave may be combined in a single request.",
+        document="leave-policy.md",
+        section="Combining leave types",
+        page="",
+        distance=0.2,
+        chunk_id="combining-leave-types",
+    )
+    with patch(
+        "app.services.query.retrieve_chunks",
+        return_value=[chunk],
+    ), patch(
+        "app.services.query.resolve_query",
+        return_value=QueryResolution(decision="answer"),
+    ) as mock_resolve, patch(
+        "app.services.query.generate_answer",
+        return_value=LLMResponse(
+            answer="They may be combined in a single request.",
+            source_ids=["combining-leave-types"],
+        ),
+    ) as mock_generate:
+        response = answer_query("Can I combine casual and privilege leave?")
+
+    assert response.answer == "They may be combined in a single request."
+    assert response.citations
+    mock_resolve.assert_called_once()
+    mock_generate.assert_called_once()
+
+
+def test_ordinary_factual_question_is_unaffected():
+    response = _run_with_mocked_llm()
+
+    assert response.answer == (
+        "Employees can carry forward up to 12 casual leave days."
+    )
+
+
+def test_combination_question_with_non_permission_wording_is_unaffected():
+    with patch(
+        "app.services.query.retrieve_chunks",
+        return_value=[_strong_chunk()],
+    ), patch(
+        "app.services.query.resolve_query",
+        return_value=QueryResolution(decision="answer"),
+    ), patch(
+        "app.services.query.generate_answer",
+        return_value=LLMResponse(
+            answer="Casual leave can be carried forward.",
+            source_ids=["leave-policy-chunk-0"],
+        ),
+    ):
+        response = answer_query("What happens when casual leave days are combined?")
+
+    assert response.answer == "Casual leave can be carried forward."
+    assert response.citations

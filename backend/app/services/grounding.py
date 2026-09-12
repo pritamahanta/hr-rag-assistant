@@ -5,11 +5,11 @@ _PERMISSION_QUESTION = re.compile(
     r"^\s*\b(?:can|could|may)\b.*\?|"
     r"\b(?:am|are|is)\s+(?:i|we|they|employees)?\s*"
     r"(?:allowed|permitted|entitled)\b.*\?|"
-    r"\b(?:is|are)\b.*\b(?:allowed|permitted|possible|prohibited|forbidden)\b.*\?",
+    r"\b(?:is|are)\b.*\b(?:allowed|permitted|possible|okay|ok|prohibited|forbidden)\b.*\?",
     re.IGNORECASE,
 )
 _EXPLICIT_MARKER = re.compile(
-    r"\b(?:may|can|allowed|permitted|entitled|prohibited|forbidden)\b|"
+    r"\b(?:may|can|allowed|permitted|entitled|okay|ok|prohibited|forbidden)\b|"
     r"\b(?:cannot|can't|may not|not allowed|not permitted)\b",
     re.IGNORECASE,
 )
@@ -18,7 +18,7 @@ _STOP_WORDS = {
     "a", "an", "am", "are", "be", "can", "could", "do", "does", "for",
     "how", "i", "if", "in", "is", "it", "may", "me", "my", "of", "on",
     "or", "please", "possible", "prohibited", "forbidden", "allowed", "permitted",
-    "entitled", "that", "the", "they", "to", "we", "what",
+    "entitled", "okay", "ok", "that", "the", "they", "to", "we", "what",
     "when", "where", "which", "who", "why", "with", "would", "you", "your",
 }
 
