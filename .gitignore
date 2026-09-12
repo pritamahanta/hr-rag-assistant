@@ -13,3 +13,6 @@ test_documents/
 frontend/node_modules/
 frontend/dist/
 .vercel
+
+
+frontend/.env.local
