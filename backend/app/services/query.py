@@ -5,6 +5,7 @@ from groq import RateLimitError
 
 from app.models.schemas import AnswerResponse
 from app.services.citations import build_citations
+from app.services.grounding import has_explicit_support, is_permission_question
 from app.services.llm import generate_answer, resolve_query
 from app.services.retrieval import retrieve_chunks
 
@@ -65,6 +66,15 @@ def answer_query(
         )
 
     context = build_context(chunks)
+
+    if (
+        is_permission_question(question)
+        and not has_explicit_support(question, context)
+    ):
+        return AnswerResponse(
+            answer=REFUSAL_MESSAGE,
+            citations=[],
+        )
 
     try:
         resolution = resolve_query(
