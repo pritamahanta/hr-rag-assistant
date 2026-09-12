@@ -98,58 +98,65 @@ function DocumentManager() {
   }, []);
 
   return (
-    <section className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900">
+    <section className="document-panel">
+      <h2 className="panel-title">
         Manage Policies
       </h2>
 
-      <div className="mt-4 flex gap-3">
-        <input
-          id="policy-file-input"
-          type="file"
-          accept=".md,.txt,.pdf"
-          onChange={(event) => {
-            setFile(event.target.files[0] || null);
-          }}
-          className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900"
-        />
+      <div className="upload-row">
+        <div className="file-picker">
+          <input
+            id="policy-file-input"
+            type="file"
+            accept=".md,.txt,.pdf"
+            onChange={(event) => {
+              setFile(event.target.files[0] || null);
+            }}
+            className="file-input"
+          />
+          <label htmlFor="policy-file-input" className="file-picker-control">
+            <span className="file-picker-button">Choose File</span>
+            <span className="file-picker-name">{file ? file.name : "No file selected"}</span>
+          </label>
+          <p className="file-helper">Supported formats: .md, .txt, .pdf <span aria-hidden="true">&#183;</span> Maximum size: 10 MB</p>
+        </div>
 
         <button
           type="button"
           onClick={handleUpload}
           disabled={loading}
-          className="rounded-lg bg-gray-900 px-5 py-2 text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className="upload-button"
         >
           {loading ? "Uploading..." : "Upload"}
         </button>
       </div>
 
       {status && (
-        <p className="mt-3 text-sm text-gray-600">
+        <p className="manager-status">
           {status}
         </p>
       )}
 
-      <div className="mt-6">
-        <h3 className="font-medium text-gray-900">Uploaded Policies</h3>
+      <div className="uploaded-section">
+        <h3 className="section-label">Uploaded Policies</h3>
 
         {documents.length === 0 ? (
-          <p className="mt-3 text-sm text-gray-500">
+          <p className="no-documents">
             No documents uploaded.
           </p>
         ) : (
-          <div className="mt-3 space-y-2">
+          <div className="document-list">
             {documents.map((document) => (
               <div
                 key={document}
-                className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3"
+                className="document-row"
               >
-                <span className="text-gray-800">{document}</span>
+                <span className="document-name"><span className="file-mark">FILE</span>{document}</span>
 
                 <button
                   type="button"
                   onClick={() => handleDelete(document)}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-red-600 hover:bg-gray-100"
+                  className="delete-button"
                 >
                   Delete
                 </button>

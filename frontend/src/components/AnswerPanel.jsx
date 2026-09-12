@@ -1,45 +1,45 @@
 function AnswerPanel({ answer, citations }) {
   return (
-    <section className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900">Answer</h2>
+    <section className="answer-panel">
+      <div className="answer-heading"><span className="answer-icon">✦</span><h2>Answer</h2></div>
 
       {answer ? (
-        <p className="mt-4 whitespace-pre-wrap leading-7 text-gray-700">
+        <p className="answer-copy">
           {answer}
         </p>
       ) : (
-        <p className="mt-4 text-gray-500">
+        <p className="answer-copy empty-answer">
           Ask a question to see an answer.
         </p>
       )}
 
       {citations.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <div className="citations">
+          <h3 className="citations-heading">
             Sources
           </h3>
 
-          <div className="mt-3 space-y-2">
+          <div className="citation-list">
             {citations.map((citation, index) => (
               <div
                 key={`${citation.document}-${citation.section}-${citation.page}-${index}`}
-                className="flex gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"
+                className="citation"
               >
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-700">
+                <span className="citation-number">
                   {index + 1}
                 </span>
 
                 <div className="min-w-0">
-                  <p className="font-medium text-gray-900">
+                  <p className="citation-document">
                     {citation.document}
                   </p>
 
-                  <p className="mt-1 text-sm leading-5 text-gray-600">
+                  <p className="citation-section">
                     {citation.section || "Section unavailable"}
                   </p>
 
                   {citation.page !== "" && (
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="citation-page">
                       Page {citation.page}
                     </p>
                   )}
