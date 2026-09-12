@@ -93,6 +93,8 @@ def test_retrieval_can_return_bm25_only_candidate():
         "app.services.retrieval.generate_embedding",
         return_value=[0.1],
     ), patch(
+        "app.services.retrieval.ensure_search_indexes",
+    ), patch(
         "app.services.retrieval.search_chunks",
         return_value=vector_results,
     ), patch(
@@ -122,6 +124,9 @@ def test_retrieval_can_return_bm25_only_candidate():
                 "keyword-chunk",
             ],
         },
+    ), patch(
+        "app.services.retrieval.section_index.get_siblings",
+        return_value=[],
     ):
         chunks = retrieve_chunks(
             query="exact policy term",

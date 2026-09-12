@@ -27,10 +27,16 @@ def test_query_rejects_whitespace_question():
 
 
 def test_list_documents_endpoint():
-    response = client.get("/documents/")
+    with patch(
+        "app.routes.documents.list_files",
+        return_value=["leave-policy.md", "notes.txt", "ignored.csv"],
+    ):
+        response = client.get("/documents/")
 
     assert response.status_code == 200
-    assert "documents" in response.json()
+    assert response.json() == {
+        "documents": ["leave-policy.md", "notes.txt"],
+    }
 
 
 def test_query_returns_500_when_query_service_fails():
