@@ -55,9 +55,13 @@ QUERY_RESOLUTION_SCHEMA = {
                 "refuse",
             ],
         },
+        "clarification": {
+            "type": "string",
+        },
     },
     "required": [
         "decision",
+        "clarification",
     ],
     "additionalProperties": False,
 }
@@ -222,11 +226,20 @@ def resolve_query(
                     "If answering the question requires introducing an unstated policy rule "
                     "or assumption, choose 'refuse'. "
 
+                    "When choosing 'clarify', also provide a short clarification question. "
+                    "Construct it strictly from the provided policy context and the user's "
+                    "question. Ask only for the missing distinction or information needed to "
+                    "choose among materially different context-supported interpretations. "
+                    "Use only categories, values, entities, and terminology explicitly present "
+                    "in the context; never introduce a fact, policy option, leave type, benefit, "
+                    "or term that the context does not support. Keep it concise and natural. "
+                    "For 'answer' and 'refuse', set clarification to an empty string. "
+
                     "Use only the provided policy context. "
                     "Do not use general knowledge or outside information. "
 
                     "Do not answer the user's question directly. "
-                    "Return only the decision."
+                    "Return both the decision and clarification fields."
                 ),
             },
             {
