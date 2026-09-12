@@ -6,7 +6,7 @@ function QueryPanel({ question, setQuestion, onAsk, loading }) {
                     type="text"
                     value={question}
                     onChange={(event) => setQuestion(event.target.value)}
-                    placeholder="How many casual leave days do employees receive?"
+                    placeholder="Ask about HR policies..."
                     className="query-input"
                 />
 

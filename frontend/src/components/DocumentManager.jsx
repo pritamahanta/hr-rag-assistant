@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createApiError, getUserFacingError } from "../utils/errorMessages";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -13,13 +14,13 @@ function DocumentManager() {
       const response = await fetch(`${API_URL}/documents/`);
 
       if (!response.ok) {
-        throw new Error("Failed to load documents.");
+        throw createApiError(`HTTP ${response.status}`, response.status);
       }
 
       const data = await response.json();
       setDocuments(data.documents);
     } catch (error) {
-      setStatus(error.message);
+      setStatus(getUserFacingError(error, "load documents"));
     }
   }
 
@@ -47,7 +48,7 @@ function DocumentManager() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Upload failed.");
+        throw createApiError(data.detail || `HTTP ${response.status}`, response.status);
       }
 
       setStatus(`${data.filename} uploaded successfully.`);
@@ -57,7 +58,7 @@ function DocumentManager() {
 
       await loadDocuments();
     } catch (error) {
-      setStatus(error.message);
+      setStatus(getUserFacingError(error, "upload"));
     } finally {
       setLoading(false);
     }
@@ -84,12 +85,12 @@ function DocumentManager() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Failed to delete document.");
+        throw createApiError(data.detail || `HTTP ${response.status}`, response.status);
       }
 
       await loadDocuments();
     } catch (error) {
-      setStatus(error.message);
+      setStatus(getUserFacingError(error, "delete"));
     }
   }
 

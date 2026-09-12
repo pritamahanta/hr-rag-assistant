@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import QueryPanel from "./components/QueryPanel";
 import AnswerPanel from "./components/AnswerPanel";
 import DocumentManager from "./components/DocumentManager";
+import { createApiError, getUserFacingError } from "./utils/errorMessages";
 
 const exampleQuestions = [
   "How many casual leave days do employees receive?",
@@ -20,38 +21,29 @@ function MessageIcon({ size = 24 }) {
   );
 }
 
-function Sidebar({ role, setRole, goHome }) {
+function TopNavigation({ role, setRole, goHome }) {
   return (
-    <aside className="sidebar">
+    <header className="top-navigation">
       <button className="brand" onClick={goHome} aria-label="Go to HR Policy Assistant home">
         <span className="brand-mark"><MessageIcon size={20} /></span>
         <span>HR Policy Assistant</span>
       </button>
 
-      <div className="sidebar-content">
-        <div className="role-heading">Workspace</div>
-        <div className="role-switcher" role="group" aria-label="Choose workspace">
-          <button className={`role-option ${role === "employee" ? "active" : ""}`} onClick={() => setRole("employee")}>
-            <span className="role-icon">E</span>
-            <span><strong>Employee</strong><small>Ask about HR policies</small></span>
-          </button>
-          <button className={`role-option ${role === "admin" ? "active" : ""}`} onClick={() => setRole("admin")}>
-            <span className="role-icon">A</span>
-            <span><strong>Admin</strong><small>Manage policy documents</small></span>
-          </button>
-        </div>
+      <div className="role-switcher" role="group" aria-label="Choose workspace">
+        <button className={`role-option ${role === "employee" ? "active" : ""}`} aria-pressed={role === "employee"} onClick={() => setRole("employee")}>
+          Employee
+        </button>
+        <button className={`role-option ${role === "admin" ? "active" : ""}`} aria-pressed={role === "admin"} onClick={() => setRole("admin")}>
+          Admin
+        </button>
       </div>
 
-      <div className="sidebar-footer">
-        <span className="status-dot" />
-        <span>Policy knowledge base online</span>
-      </div>
-    </aside>
+    </header>
   );
 }
 
 function App() {
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState("employee");
   const [question, setQuestion] = useState("");
   const [conversation, setConversation] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -100,7 +92,7 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Query failed.");
+        throw createApiError(data.detail || `HTTP ${response.status}`, response.status);
       }
 
       setConversation((currentConversation) => currentConversation.map((message) => (
@@ -109,9 +101,10 @@ function App() {
           : message
       )));
     } catch (error) {
+      const userFacingError = getUserFacingError(error, "query");
       setConversation((currentConversation) => currentConversation.map((message) => (
         message.id === messageId
-          ? { ...message, answer: error.message, loading: false }
+          ? { ...message, answer: userFacingError, loading: false }
           : message
       )));
     } finally {
@@ -119,14 +112,14 @@ function App() {
     }
   }
   function goHome() {
-    setRole(null);
+    setRole("employee");
     setQuestion("");
     setConversation([]);
   }
 
   return (
     <main className="app-shell">
-      <Sidebar role={role} setRole={setRole} goHome={goHome} />
+      <TopNavigation role={role} setRole={setRole} goHome={goHome} />
       <section className="main-content">
         {role === "admin" ? (
           <div className="content-wrap admin-content">
@@ -136,18 +129,15 @@ function App() {
             </header>
             <DocumentManager />
           </div>
-        ) : role === "employee" ? (
+        ) : (
           <div className="content-wrap assistant-content">
             <header className="page-header">
-              <div><span className="eyebrow">EMPLOYEE WORKSPACE</span><h1>How can we help?</h1><p>Ask a question about your workplace policies.</p></div>
-              <span className="header-badge"><span className="status-dot" /> Online</span>
+              <div><span className="eyebrow">EMPLOYEE WORKSPACE</span><h1>How can we help?</h1><p>Ask about your workplace policies.</p></div>
             </header>
 
             {conversation.length === 0 && (
               <div className="empty-state">
                 <div className="empty-icon"><MessageIcon size={30} /></div>
-                <h2>Your HR questions, answered.</h2>
-                <p>Get clear answers from your company&apos;s HR policy documents.</p>
                 <div className="example-grid">
                   {exampleQuestions.map((example) => <button key={example} onClick={() => setQuestion(example)} className="example-card"><span>{example}</span><span className="arrow">&#8599;</span></button>)}
                 </div>
@@ -180,13 +170,6 @@ function App() {
               <QueryPanel question={question} setQuestion={setQuestion} onAsk={handleAsk} loading={loading} />
               <p className="assistant-disclaimer">AI-generated responses may contain mistakes. Check important information against the cited policy.</p>
             </div>
-          </div>
-        ) : (
-          <div className="welcome-state">
-            <div className="empty-icon"><MessageIcon size={30} /></div>
-            <span className="eyebrow">HR POLICY ASSISTANT</span>
-            <h1>Welcome to your HR assistant.</h1>
-            <p>Choose a workspace from the sidebar to get started.</p>
           </div>
         )}
       </section>
