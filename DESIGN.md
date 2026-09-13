@@ -4,7 +4,7 @@
 
 This application answers employee questions from uploaded HR policy documents. The design goal is controlled, inspectable behavior: retrieve policy evidence, decide whether that evidence is sufficient, and return an answer with document provenance. If the evidence is missing, the system refuses rather than filling the gap with general knowledge.
 
-The project is an assignment-scale prototype. It implements retrieval, grounding, citations, and a small React workflow, but not real authentication, asynchronous ingestion, persistent BM25 storage, OCR, or a deployment pipeline.
+The project is an assignment-scale prototype. It implements retrieval, grounding, citations, and a small React workflow, but not real authentication, asynchronous ingestion, persistent BM25 storage, OCR, or production-grade deployment operations. The prototype is deployed on Vercel.
 
 It intentionally favors a small number of explicit, testable components over a large orchestration framework, which keeps the assignment's design decisions defensible.
 
@@ -79,12 +79,13 @@ Chroma vector search                                    |
                          Final top-K chunks
                               v
                        Groq query resolver
-                    +---------+---------+
-                    |         |         |
-                 ANSWER    CLARIFY    REFUSE
-                    |         |         |
-                    v         v         v
-             answer LLM   fixed text  fixed text
+                              v
+                    +-------------------------+------------------------+
+                    |                         |                        |
+                 ANSWER                    CLARIFY                   REFUSE
+                    |                         |                        |
+                    v                         v                        v
+                answer LLM      short context-grounded question     refusal
                     |
                     v
               structured source_ids
@@ -112,9 +113,9 @@ The LLM calls are external. The backend, not the browser, selects context, decid
 
 `POST /query` validates `QueryRequest`, trims the question, and rejects an empty result with HTTP 400. `retrieval.py` ensures BM25 exists, embeds the query, and asks Chroma and BM25 for candidate rankings. Each path supplies `max(top_k * 2, 10)` candidates. Their IDs are fused with RRF using the default `top_k=8`, then sibling sections are added only when a retrieved chunk belongs to a nested section and those siblings share the same parent section. Retrieval produces the candidate evidence set; the resolver determines whether that evidence is sufficient for the specific question.
 
-`query.py` formats each chunk with an internal source ID, document, section, page, and content. `resolve_query` sends that context to Groq and requires one structured decision: `answer`, `clarify`, or `refuse`. Only `answer` invokes the second Groq call, which returns structured `answer` and `source_ids`. The backend validates those IDs against the chunks retrieved for this request, creates deduplicated citations, and returns `AnswerResponse` to React.
+`query.py` formats each chunk with an internal source ID, document, section, page, and content. `resolve_query` sends the retrieved policy context and user question to Groq and requires one structured decision: `answer`, `clarify`, or `refuse`, plus a clarification field. When the decision is `clarify`, that field contains a short question generated strictly from the supplied policy context and user question. For `answer` and `refuse`, the clarification field is empty. Only `answer` invokes the second Groq call, which returns structured `answer` and `source_ids`. The backend validates those IDs against the chunks retrieved for this request, creates deduplicated citations, and returns `AnswerResponse` to React.
 
-Empty retrieval, resolver refusal, or missing/invalid citations returns the canonical refusal with no citations. A genuine ambiguity returns a fixed clarification with no citations. Unexpected retrieval, resolver, and generation exceptions become HTTP 500 through `QueryServiceError`, while Groq rate-limit failures return HTTP 503; infrastructure failure is not mislabeled as policy refusal.
+Empty retrieval, resolver refusal, or missing/invalid citations returns the canonical refusal with no citations. A genuine ambiguity returns the resolver's short clarification question with no citations. The clarification is grounded only in the retrieved policy context and user question; it does not use conversation history or persistent memory and cannot introduce unsupported policy facts or options. Unexpected retrieval, resolver, and generation exceptions become HTTP 500 through `QueryServiceError`, while Groq rate-limit failures return HTTP 503; infrastructure failure is not mislabeled as policy refusal.
 
 ## 4. Retrieval Architecture
 
@@ -140,7 +141,7 @@ Retrieved chunks
 Backend context: source ID + provenance + content
       v
 Query Resolver
-  +-- clarify -> fixed clarification, no citations
+    +-- clarify -> resolver-generated clarification, no citations
   +-- refuse  -> fixed refusal, no citations
   `-- answer  -> Answer Generator -> source_ids
                                       v
@@ -200,7 +201,7 @@ The frontend is responsible for role selection, question input, upload/delete co
 | `DELETE /documents/{filename}` | Path filename; `X-User-Role: admin` | Message, filename, `chunks_deleted`; `403`, `404` if no indexed chunks, or `500` storage failure |
 | `POST /query` | `{ "question": "..." }` | `AnswerResponse`; `400` empty after trim, `500` unexpected query-service failure, or `503` Groq rate-limit failure |
 
-`AnswerResponse` contains `answer` and `citations`. `Citation` contains `document`, `section`, and `page`. Internal structured models restrict resolution to `answer`, `clarify`, or `refuse`, and LLM output to `answer` plus `source_ids`. Pydantic and Groq JSON schemas make the client boundary predictable; free-form LLM output is not returned directly.
+`AnswerResponse` contains `answer` and `citations`. `Citation` contains `document`, `section`, and `page`. Internal structured models restrict resolution to `answer`, `clarify`, or `refuse` plus a clarification field. The resolver's clarification is empty for `answer` and `refuse`; for `clarify`, it is generated strictly from the supplied policy context and user question. The answer-generation LLM returns `answer` plus `source_ids`. Pydantic and Groq JSON schemas make the client boundary predictable; free-form LLM output is not returned directly.
 
 ## 9. Authorization
 
@@ -211,7 +212,7 @@ This is prototype authorization, not authentication, SSO, secure RBAC, identity 
 ## 10. Trade-offs
 
 - **Hybrid vector + BM25 vs vector-only:** chosen because HR questions mix paraphrases with exact clause terms, section numbers, identifiers, and table values. The cost is a second, process-local index and rebuilds.
-- **Two LLM stages vs one:** the resolver makes answer/clarify/refuse explicit before generation, improving control and testability. The cost is another provider call and latency.
+- **Two LLM stages vs one:** the resolver makes answer/clarify/refuse explicit before generation and can generate a concise, policy-grounded clarification for genuine ambiguity, improving control and testability. The cost is another provider call and latency; clarification remains limited to the retrieved evidence and does not use conversation history or persistent memory.
 - **Synchronous vs asynchronous ingestion:** synchronous processing is easy to reason about and returns `chunks_indexed` immediately. It blocks uploads during parsing, embedding, and external calls.
 - **Line/section chunks vs token/semantic chunks:** the current strategy preserves headings and simple tables with little tuning. It is less optimal for arbitrary documents and is not token-aware.
 - **Chroma Cloud vs local persistence:** Cloud matches the external indexed-corpus design, but adds provider credentials and dependency on an external service. Application code uses `CloudClient`; local Chroma clients appear in tests.
@@ -221,11 +222,11 @@ This is prototype authorization, not authentication, SSO, secure RBAC, identity 
 
 ## 11. Testing and Assignment Stretch Features
 
-The backend tests cover parser dispatch, Markdown hierarchy, PDF page metadata, chunk limits and table handling, ingestion replacement, Chroma add/search/delete/replace, BM25 ranking and rebuilds, RRF, BM25-only retrieval candidates, route validation, upload limits/types, admin authorization, citation filtering/deduplication, query failures, and answer/clarify/refuse orchestration.
+The backend tests cover parser dispatch, Markdown hierarchy, PDF page metadata, chunk limits and table handling, ingestion replacement, Chroma add/search/delete/replace, BM25 ranking and rebuilds, RRF, BM25-only retrieval candidates, route validation, upload limits/types, admin authorization, citation filtering/deduplication, query failures, and answer/clarify/refuse orchestration, including resolver clarification handling.
 
-`test_eval.py` is a small mocked set covering supported and informal supported questions, an ambiguous leave question, and an unsupported benefit question. It validates orchestration, not live Groq quality, retrieval recall, or factual model accuracy. There is no browser, load, security, or deployment test.
+`test_eval.py` is a small mocked set covering supported and informal supported questions, an ambiguous leave question, and an unsupported benefit question. It validates orchestration and resolver clarification handling, not live Groq quality, retrieval recall, or factual model accuracy. There is no browser, load, security, or deployment test.
 
-Implemented assignment stretch behaviors are hybrid search, improved Markdown/PDF/table provenance handling, the small mocked evaluation set, and same-name policy replacement/re-indexing. They are useful because they address retrieval coverage, provenance, and stale-index risk without introducing a larger framework.
+Implemented assignment stretch behaviors are hybrid search, Markdown section provenance, PDF page provenance, table handling, the small mocked evaluation set, and same-name policy replacement/re-indexing. They are useful because they address retrieval coverage, provenance, and stale-index risk without introducing a larger framework.
 
 ## 12. Deployment, Limitations, and Two-Week Plan
 
