@@ -174,27 +174,6 @@ Policy files -------------------------> Supabase Storage
                                        (uploaded originals)
 ```
 
-## Architecture
-
-The backend lives under `backend/app`:
-
-- `routes/documents.py` validates upload names and size, applies the prototype admin check, and coordinates storage and ingestion.
-- `routes/query.py` validates questions and exposes the query endpoint.
-- `services/storage.py` uses Supabase Storage for uploaded files.
-- `services/document_parser.py` extracts Markdown, text, or PDF page content.
-- `services/chunking.py` creates section-aware, line-aware chunks.
-- `services/embedding.py` generates local `all-MiniLM-L6-v2` embeddings.
-- `services/vector_store.py` stores chunks in the Chroma Cloud collection `hr_policies` using cosine space.
-- `services/keyword_search.py` maintains an in-memory BM25 index.
-- `services/retrieval.py` combines Chroma and BM25 rankings with Reciprocal Rank Fusion (RRF).
-- `services/query.py` coordinates retrieval, resolution, answer generation, and citation validation.
-- `services/llm.py` uses Groq and the `openai/gpt-oss-20b` model with structured JSON responses.
-- `services/citations.py` converts valid retrieved source IDs into deduplicated citation metadata.
-
-The frontend is a Vite React application in `frontend/src`. `App.jsx` provides the employee/admin views; `QueryPanel`, `AnswerPanel`, and `DocumentManager` call the FastAPI API and render results.
-
-Groq is used for query resolution and grounded answer generation. Embeddings are generated locally with `sentence-transformers` using `all-MiniLM-L6-v2`; policy text is not sent to a separate embedding provider.
-
 ## End-to-End Flow
 
 ### Document ingestion
