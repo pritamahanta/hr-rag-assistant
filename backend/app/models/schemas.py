@@ -9,7 +9,6 @@ class Citation(BaseModel):
 
 class QueryResolution(BaseModel):
     decision: Literal["answer", "clarify", "refuse"]
-    clarification: str | None = None
 
 class LLMResponse(BaseModel):
     answer: str
