@@ -69,6 +69,45 @@ def test_clarify_decision_returns_generic_clarification():
     assert response.citations == []
 
 
+def test_ambiguous_leave_question_returns_generated_clarification():
+    chunks = [
+        _strong_chunk(),
+        RetrievedChunk(
+            text="Privilege leave: up to 15 days can be carried forward.",
+            document="leave_policy.md",
+            section="Privilege Leave",
+            page="",
+            distance=0.2,
+            chunk_id="privilege-leave-1",
+        ),
+        RetrievedChunk(
+            text="Sick leave does not carry forward.",
+            document="leave_policy.md",
+            section="Sick Leave",
+            page="",
+            distance=0.2,
+            chunk_id="sick-leave-1",
+        ),
+    ]
+    clarification = (
+        "Which type of leave are you asking about: casual, sick, or privilege leave?"
+    )
+    with patch(
+        "app.services.query.retrieve_chunks",
+        return_value=chunks,
+    ), patch(
+        "app.services.query.resolve_query",
+        return_value=QueryResolution(
+            decision="clarify",
+            clarification=clarification,
+        ),
+    ):
+        response = answer_query("How many leave days can I carry forward?")
+
+    assert response.answer == clarification
+    assert response.citations == []
+
+
 def test_answer_decision_with_empty_source_ids_is_untrustworthy():
     response = _run_with_mocked_llm(
         resolution="answer",

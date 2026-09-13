@@ -103,8 +103,12 @@ def answer_query(
         raise QueryServiceError("Query resolution failed.") from exc
 
     if resolution.decision == "clarify":
+        clarification = resolution.clarification
+        if isinstance(clarification, str):
+            clarification = clarification.strip()
+
         return AnswerResponse(
-            answer=CLARIFICATION_MESSAGE,
+            answer=clarification or CLARIFICATION_MESSAGE,
             citations=[],
         )
 
