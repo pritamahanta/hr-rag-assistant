@@ -32,7 +32,6 @@ def ingest_document(
 
     sections = parse_document(file_path)
 
-    # Preserve the logical document name even when processing a temporary file.
     for section in sections:
         section["document"] = document
 
