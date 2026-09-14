@@ -16,3 +16,6 @@ frontend/dist/
 
 
 frontend/.env.local
+
+qna/
+run.js
